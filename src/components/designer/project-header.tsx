@@ -55,7 +55,7 @@ function ProjectName() {
         maxLength={120}
         aria-label="Project name"
         autoFocus
-        className="h-6 w-64"
+        className="h-6 w-36 sm:w-64"
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => {
@@ -110,7 +110,7 @@ function ValidateButton() {
       ) : (
         <ShieldCheck />
       )}
-      Validate
+      <span className="hidden sm:inline">Validate</span>
       {count > 0 && (
         <span
           className={`rounded-full px-1.5 text-xs ${errors ? "bg-red-500/15 text-red-600" : "bg-amber-500/15 text-amber-600"}`}
@@ -136,7 +136,7 @@ function ReadOnlyToggle() {
       onClick={() => store.getState().setReadOnly(!readOnly)}
     >
       {readOnly ? <Lock /> : <LockOpen />}
-      Read-only
+      <span className="hidden sm:inline">Read-only</span>
     </Button>
   );
 }
@@ -146,14 +146,14 @@ export function ProjectHeader() {
   const pathname = usePathname();
   return (
     <div className="shrink-0 border-b bg-background/95 backdrop-blur-sm">
-      <div className="flex h-13 items-center justify-between gap-3 px-4">
+      <div className="flex h-13 items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4">
         {/* Left: Project identity */}
-        <div className="flex min-w-0 items-center gap-2.5">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
           <span className="grid size-8 shrink-0 place-items-center rounded-lg border bg-muted/50 shadow-2xs">
             <Network className="size-4 text-foreground" aria-hidden />
           </span>
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <ProjectName />
               <SaveIndicator />
             </div>
@@ -191,7 +191,7 @@ export function ProjectHeader() {
         </nav>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <div className="flex items-center divide-x overflow-hidden rounded-lg border bg-background shadow-xs [&>button]:rounded-none [&>button]:border-0 [&>button]:shadow-none">
             <ValidateButton />
             <ExportMenu />
@@ -205,9 +205,9 @@ export function ProjectHeader() {
       {/* Sub-nav row for mobile/smaller screens (< lg) */}
       <nav
         aria-label="Mobile project sections"
-        className="flex h-9 items-center border-t px-4 lg:hidden"
+        className="flex h-9 items-center border-t px-3 sm:px-4 lg:hidden overflow-x-auto no-scrollbar scroll-smooth"
       >
-        <div className="inline-flex items-center gap-0.5 rounded-lg bg-muted/60 p-0.5">
+        <div className="inline-flex shrink-0 items-center gap-0.5 rounded-lg bg-muted/60 p-0.5">
           {TABS.map((tab) => {
             const href = tab.segment ? `/projects/${slug}/${tab.segment}` : `/projects/${slug}`;
             const active = pathname === href;
@@ -217,7 +217,7 @@ export function ProjectHeader() {
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "rounded-md px-2 py-0.5 text-xs transition-colors",
+                  "rounded-md px-2 py-0.5 text-xs transition-colors whitespace-nowrap",
                   active
                     ? "bg-background font-medium text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground",

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { fullstackDesign, microservicesDesign } from "@/lib/design/examples/archetypes";
 import { teamTasksDesign } from "@/lib/design/examples/team-tasks";
 import { checkIntegrity, parseDesign, safeParseDesign } from "@/lib/design/integrity";
 import { designJsonSchema, DesignDocumentSchema, emptyDesign } from "@/lib/design/schema";
@@ -74,5 +75,15 @@ describe("design schema", () => {
     expect(schema.$schema).toContain("2020-12");
     expect(schema.required).toEqual(["schemaVersion"]);
     expect(JSON.stringify(schema)).toContain('"depends_on"');
+  });
+
+  it("parses fullstack and microservices archetypes without integrity issues", () => {
+    const fs = parseDesign(fullstackDesign);
+    expect(checkIntegrity(fs)).toEqual([]);
+    expect(fs.nodes).toHaveLength(4);
+
+    const ms = parseDesign(microservicesDesign);
+    expect(checkIntegrity(ms)).toEqual([]);
+    expect(ms.nodes).toHaveLength(6);
   });
 });

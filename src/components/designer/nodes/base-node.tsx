@@ -252,16 +252,16 @@ export function OpenButton({ node }: { node: DesignNode }) {
 }
 
 export const card =
-  "group/node w-52 rounded-xl border bg-card p-2.5 shadow-[0_1px_3px_0_rgb(0_0_0/0.04)] transition-shadow hover:shadow-md";
+  "group/node w-52 rounded-xl border bg-card p-2.5 shadow-[0_1px_3px_0_rgb(0_0_0/0.04)] transition-shadow hover:shadow-md cursor-grab active:cursor-grabbing";
 
 function Grip({ selected }: { selected?: boolean }) {
   return (
     <span
-      title={selected ? "Drag to move" : "Click to select before dragging"}
+      title="Drag to move"
       className={cn(
-        "-mr-1 shrink-0 self-start transition-opacity",
+        "-mr-1 shrink-0 self-start transition-opacity cursor-grab active:cursor-grabbing",
         selected
-          ? "cursor-grab text-muted-foreground opacity-100 active:cursor-grabbing"
+          ? "text-muted-foreground opacity-100"
           : "text-muted-foreground/30 opacity-40 group-hover/node:opacity-75",
       )}
     >
@@ -274,45 +274,40 @@ function Grip({ selected }: { selected?: boolean }) {
 export function CardNode({ data, selected }: NodeProps<FlowNode>) {
   // In the levels view a module can be opened, unless it's the one already open.
   const openable = useCanvasUi((s) => s.viewMode === "levels" && s.focusId !== data.node.id);
+  const lod = useCanvasUi((s) => s.lod);
   return (
-    <div
-      data-selected={selected}
-      className={cn(
-        card,
-        selected ? cn(selectedRing, "cursor-grab active:cursor-grabbing") : "cursor-pointer",
-      )}
-    >
+    <div data-selected={selected} className={cn(card, selected && selectedRing)}>
       <Handles kind={data.node.kind} />
       <div className="flex items-start gap-1">
         <Title node={data.node} />
         {openable && isFocusable(data.node) && <OpenButton node={data.node} />}
         <Grip selected={selected} />
       </div>
-      <Chips data={data} className="mt-2" />
+      {lod !== "compact" && <Chips data={data} className="mt-2" />}
     </div>
   );
 }
 
 export function EntityNode({ data, selected }: NodeProps<FlowNode>) {
   const { node } = data;
+  const lod = useCanvasUi((s) => s.lod);
   if (node.kind !== "entity") return null;
-  const fields = node.data.fields.slice(0, ENTITY_FIELD_ROWS);
+  const showFields =
+    lod === "detailed"
+      ? node.data.fields.slice(0, ENTITY_FIELD_ROWS)
+      : lod === "medium"
+        ? node.data.fields.filter((f) => f.primary).slice(0, 2)
+        : [];
   return (
-    <div
-      data-selected={selected}
-      className={cn(
-        card,
-        selected ? cn(selectedRing, "cursor-grab active:cursor-grabbing") : "cursor-pointer",
-      )}
-    >
+    <div data-selected={selected} className={cn(card, selected && selectedRing)}>
       <Handles kind={node.kind} />
       <div className="flex items-start gap-1">
         <Title node={node} />
         <Grip selected={selected} />
       </div>
-      {fields.length > 0 && (
+      {showFields.length > 0 && (
         <ul className="mt-2 space-y-0.5 rounded-lg border border-border/60 bg-muted/40 px-2 py-1.5 font-mono text-[11px]">
-          {fields.map((f) => (
+          {showFields.map((f) => (
             <li key={f.name} className="flex items-center justify-between gap-1 truncate">
               <span className="flex items-center gap-1 truncate">
                 {f.primary && (
@@ -329,14 +324,14 @@ export function EntityNode({ data, selected }: NodeProps<FlowNode>) {
               </span>
             </li>
           ))}
-          {node.data.fields.length > fields.length && (
+          {lod === "detailed" && node.data.fields.length > showFields.length && (
             <li className="pt-0.5 text-[10px] text-muted-foreground">
-              +{node.data.fields.length - fields.length} more fields
+              +{node.data.fields.length - showFields.length} more fields
             </li>
           )}
         </ul>
       )}
-      <Chips data={data} className="mt-2" />
+      {lod !== "compact" && <Chips data={data} className="mt-2" />}
     </div>
   );
 }
@@ -348,9 +343,9 @@ export function NoteNode({ data, selected }: NodeProps<FlowNode>) {
     <div
       data-selected={selected}
       className={cn(
-        "group/node h-28 w-52 overflow-hidden rounded-xl border border-black/5 p-3 text-xs shadow-[0_1px_3px_0_rgb(0_0_0/0.06)]",
+        "group/node h-28 w-52 overflow-hidden rounded-xl border border-black/5 p-3 text-xs shadow-[0_1px_3px_0_rgb(0_0_0/0.06)] cursor-grab active:cursor-grabbing",
         NOTE_COLORS[node.data.color],
-        selected ? cn(selectedRing, "cursor-grab active:cursor-grabbing") : "cursor-pointer",
+        selected && selectedRing,
       )}
     >
       <Handles kind={node.kind} />
@@ -373,10 +368,10 @@ export function ContainerNode({ id, data, selected }: NodeProps<FlowNode>) {
     <div
       data-selected={selected}
       className={cn(
-        "group/node h-full w-full rounded-xl border shadow-xs transition-shadow",
+        "group/node h-full w-full rounded-xl border shadow-xs transition-shadow cursor-grab active:cursor-grabbing",
         style.line,
         style.tint,
-        selected ? cn(selectedRing, "cursor-grab active:cursor-grabbing") : "cursor-pointer",
+        selected && selectedRing,
       )}
     >
       <NodeResizer
@@ -409,6 +404,7 @@ export function ContainerNode({ id, data, selected }: NodeProps<FlowNode>) {
  */
 export function SummaryNode({ data, selected }: NodeProps<FlowNode>) {
   const { node, collapsed, context } = data;
+  const lod = useCanvasUi((s) => s.lod);
   return (
     <div
       data-selected={selected}
@@ -416,7 +412,7 @@ export function SummaryNode({ data, selected }: NodeProps<FlowNode>) {
       className={cn(
         card,
         context !== undefined && "border-dashed bg-card/70 shadow-none",
-        selected ? cn(selectedRing, "cursor-grab active:cursor-grabbing") : "cursor-pointer",
+        selected && selectedRing,
       )}
     >
       <Handles kind={node.kind} />
@@ -427,10 +423,10 @@ export function SummaryNode({ data, selected }: NodeProps<FlowNode>) {
       {collapsed !== undefined ? (
         <div className="mt-2 flex flex-wrap items-center gap-1">
           <span className={cn(chip, "text-foreground/80")}>{collapsed} inside</span>
-          {data.status && <StatusChip status={data.status} />}
+          {lod !== "compact" && data.status && <StatusChip status={data.status} />}
         </div>
       ) : (
-        <Chips data={data} className="mt-2" />
+        lod !== "compact" && <Chips data={data} className="mt-2" />
       )}
     </div>
   );

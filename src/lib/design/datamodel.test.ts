@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { dataModel, toMermaidEr } from "@/lib/design/datamodel";
+import { dataModel, toMermaidEr, toSqlDdl } from "@/lib/design/datamodel";
 import { teamTasksDesign } from "@/lib/design/examples/team-tasks";
 import { indexDesign } from "@/lib/design/graph";
 import { parseDesign } from "@/lib/design/integrity";
@@ -44,5 +44,14 @@ describe("dataModel", () => {
   it("renders a Mermaid ER diagram", async () => {
     const text = toMermaidEr(dataModel(index()));
     await expect(text).toMatchFileSnapshot("./__fixtures__/team-tasks.er.mmd");
+  });
+
+  it("renders standard SQL DDL with tables, columns and foreign keys", () => {
+    const ddl = toSqlDdl(dataModel(index()));
+    expect(ddl).toContain('CREATE TABLE IF NOT EXISTS "user"');
+    expect(ddl).toContain('CREATE TABLE IF NOT EXISTS "project"');
+    expect(ddl).toContain('CREATE TABLE IF NOT EXISTS "task"');
+    expect(ddl).toContain("FOREIGN KEY");
+    expect(ddl).toContain("REFERENCES");
   });
 });

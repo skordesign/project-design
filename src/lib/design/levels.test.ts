@@ -77,6 +77,30 @@ describe("levelView on a module", () => {
     expect(ids(view.context)).toEqual(["dst_pg", "mod_domain", "que_events"].sort());
     expect(view.edges.every((e) => e.lifted === 0)).toBe(true);
   });
+
+  it("includes notes nested inside the module", () => {
+    const docWithNote = parseDesign({
+      ...doc,
+      nodes: [
+        ...doc.nodes,
+        {
+          id: "not_repo",
+          kind: "note",
+          name: "Repo Notes",
+          parentId: "mod_repo",
+          position: { x: 20, y: 80 },
+          description: "Implementation details",
+          data: { text: "Use connection pool" },
+        },
+      ],
+    });
+    const view = levelView(docWithNote, "mod_repo");
+    expect(ids(view.inside)).toEqual(["mod_repo", "not_repo"].sort());
+    // Centred against 3 neighbours: module and note move down together.
+    const byId = new Map(view.inside.map((i) => [i.node.id, i.position]));
+    expect(byId.get("mod_repo")).toEqual({ x: 0, y: 120 });
+    expect(byId.get("not_repo")).toEqual({ x: 20, y: 200 });
+  });
 });
 
 describe("helpers", () => {

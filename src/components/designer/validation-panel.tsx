@@ -35,7 +35,7 @@ export function ValidationPanel() {
   return (
     <section
       aria-label="Validation"
-      className="flex h-70 w-90 flex-col overflow-hidden rounded-xl border bg-background shadow-lg shadow-black/5"
+      className="flex h-70 w-[calc(100vw-2rem)] sm:w-90 max-w-sm flex-col overflow-hidden rounded-xl border bg-background shadow-lg shadow-black/5"
     >
       <header className="flex items-start justify-between gap-2 border-b px-4 py-2.5">
         <div>

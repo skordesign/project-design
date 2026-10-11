@@ -83,7 +83,16 @@ export function levelView(doc: DesignDocument, focusId: string | null): LevelVie
         collapsed: NODE_KIND_META[n.kind].container ? index.children(n.id).length : null,
       }));
   } else if (focus.kind === "module") {
-    inside = [{ node: focus, parentId: null, position: { x: 0, y: 0 }, collapsed: null }];
+    const children = doc.nodes.filter((n) => n.parentId === focus.id);
+    inside = [
+      { node: focus, parentId: null, position: { x: 0, y: 0 }, collapsed: null },
+      ...children.map((n) => ({
+        node: n,
+        parentId: null,
+        position: n.position,
+        collapsed: null,
+      })),
+    ];
   } else {
     const ids = new Set(index.descendants(focus.id).map((n) => n.id));
     // doc.nodes is parents-first; keep that order.
@@ -146,8 +155,11 @@ export function levelView(doc: DesignDocument, focusId: string | null): LevelVie
     position: { x: width + CONTEXT_GAP.x, y: i * CONTEXT_GAP.y },
   }));
   if (focus?.kind === "module" && context.length > 1) {
-    // Centre the module against its neighbours.
-    inside[0]!.position = { x: 0, y: ((context.length - 1) * CONTEXT_GAP.y) / 2 };
+    // Centre the module (and its notes) against its neighbours.
+    const dy = ((context.length - 1) * CONTEXT_GAP.y) / 2;
+    for (const entry of inside) {
+      entry.position = { x: entry.position.x, y: entry.position.y + dy };
+    }
   }
 
   return {

@@ -273,6 +273,32 @@ get_project_brief and implement it step by step."_ Then go get a coffee and chec
 when you're back. When the design changes later, `sync_design_changes` updates the code from
 the diff, and `review_against_design` lists where the code has drifted.
 
+### Enforce it in CI
+
+Status write-back is mandatory, and a gate verifies it. `get_compliance_report` totals
+every build step per status, lists blocked and stale steps, and returns a pass/fail gate.
+Run it from any pipeline with the zero-dependency `scripts/design-gate.mjs`:
+
+```bash
+export PROJECT_DESIGN_TOKEN=pd_…
+node scripts/design-gate.mjs --url https://pd.polarizelab.com/api/mcp \
+  --project team-tasks --min-done 100 --fail-on-blocked
+```
+
+Exit `0` means pass, `1` means the gate failed, `2` means a usage or transport error.
+Example GitHub Actions step (run after your agent job):
+
+```yaml
+- name: Design compliance gate
+  env:
+    PROJECT_DESIGN_TOKEN: ${{ secrets.PROJECT_DESIGN_TOKEN }}
+  run: node scripts/design-gate.mjs --url https://pd.polarizelab.com/api/mcp --project team-tasks --fail-on-blocked
+```
+
+Agents can also read the machine-friendly instructions at `<APP_URL>/llms.txt`, and
+repos can commit the `skills/design-loop/SKILL.md` skill so every agent session follows
+the design-first loop without being told.
+
 ### Tools, prompts and resources
 
 | Tool                                                    | What it returns                                                 |
@@ -285,6 +311,7 @@ the diff, and `review_against_design` lists where the code has drifted.
 | `get_api_contract`                                      | OpenAPI 3.1 for REST APIs, JSON otherwise                       |
 | `get_data_model`                                        | Entities, fields, indexes, relations (JSON or Mermaid ER)       |
 | `get_build_plan`                                        | Dependency-ordered implementation steps with current statuses   |
+| `get_compliance_report`                                 | Progress totals, blocked/stale steps and a pass/fail CI gate    |
 | `validate_design`                                       | Warnings about unused, unimplemented or inconsistent parts      |
 | `get_design_changes`                                    | What changed between two versions (or a version and the draft)  |
 | `set_component_status`                                  | Write-back: `todo` / `in_progress` / `done` / `blocked` + note  |
@@ -330,8 +357,9 @@ docker compose exec -T db pg_dump -U design project_design > backup.sql        #
 docker compose exec -T db psql -U design project_design < backup.sql           # restore (into an empty database)
 ```
 
-A single design can also be exported from the UI (**Export → Design JSON**) and imported again
-from the projects page.
+A single design can also be exported from the UI (**Export** opens a dialog with the
+diagram as PNG / SVG / PDF / MMD diagram-as-code plus Design JSON, the Markdown brief and
+SQL DDL) and imported again from the projects page.
 
 ## Deploy (GitHub Actions → Coolify)
 

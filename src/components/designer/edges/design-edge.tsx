@@ -47,14 +47,60 @@ const boxOf = (n: InternalNode): Box => ({
   h: n.measured.height ?? 1,
 });
 
-/** Where the line between the two centres leaves `from`'s border, and which side that is. */
+/** Where the line between the two borders leaves `from`'s border, and which side that is. */
 function borderPoint(from: Box, to: Box): { x: number; y: number; position: Position } {
+  const cx = from.x + from.w / 2;
+  const cy = from.y + from.h / 2;
+  const toCx = to.x + to.w / 2;
+  const toCy = to.y + to.h / 2;
+  const dx = toCx - cx;
+  const dy = toCy - cy;
+
+  // 1. If 'to' is clearly to the right of 'from' (distinct columns), always attach Right -> Left
+  if (to.x >= from.x + from.w - 12) {
+    return {
+      x: from.x + from.w,
+      y: cy,
+      position: Position.Right,
+    };
+  }
+
+  // 2. If 'to' is clearly to the left of 'from', always attach Left -> Right
+  if (from.x >= to.x + to.w - 12) {
+    return {
+      x: from.x,
+      y: cy,
+      position: Position.Left,
+    };
+  }
+
+  // 3. If 'to' is below 'from' and their horizontal spans overlap
+  if (to.y >= from.y + from.h - 12) {
+    const overlapMinX = Math.max(from.x, to.x);
+    const overlapMaxX = Math.min(from.x + from.w, to.x + to.w);
+    const clampX = overlapMinX < overlapMaxX ? (overlapMinX + overlapMaxX) / 2 : cx;
+    return {
+      x: clampX,
+      y: from.y + from.h,
+      position: Position.Bottom,
+    };
+  }
+
+  // 4. If 'to' is above 'from' and their horizontal spans overlap
+  if (from.y >= to.y + to.h - 12) {
+    const overlapMinX = Math.max(from.x, to.x);
+    const overlapMaxX = Math.min(from.x + from.w, to.x + to.w);
+    const clampX = overlapMinX < overlapMaxX ? (overlapMinX + overlapMaxX) / 2 : cx;
+    return {
+      x: clampX,
+      y: from.y,
+      position: Position.Top,
+    };
+  }
+
+  // 5. Fallback for overlapping or nested boxes: ray intersection
   const w = from.w / 2;
   const h = from.h / 2;
-  const cx = from.x + w;
-  const cy = from.y + h;
-  const dx = to.x + to.w / 2 - cx;
-  const dy = to.y + to.h / 2 - cy;
   const scale = 1 / Math.max(Math.abs(dx) / w, Math.abs(dy) / h, 1e-6);
   const x = cx + dx * scale;
   const y = cy + dy * scale;
@@ -79,6 +125,46 @@ export function DesignEdgeView({ id, source, target, data, selected }: EdgeProps
   const b = boxOf(targetNode);
   const from = borderPoint(a, b);
   const to = borderPoint(b, a);
+
+  // Stagger vertical and horizontal bends across parallel channels so multi-edges don't overlap into a thick blob
+  let centerX: number | undefined;
+  let centerY: number | undefined;
+
+  if (from.position === Position.Right && to.position === Position.Left) {
+    const gap = to.x - from.x;
+    const dy = to.y - from.y;
+    if (gap >= 60 && Math.abs(dy) >= 20) {
+      // Bends further away turn closer to source (inner tracks), creating clean nested parallel lines
+      const row = Math.min(8, Math.max(1, Math.round(Math.abs(dy) / 90)));
+      const fraction = 0.22 + (1 - row / 8) * 0.56;
+      centerX = from.x + gap * fraction;
+    }
+  } else if (from.position === Position.Left && to.position === Position.Right) {
+    const gap = from.x - to.x;
+    const dy = to.y - from.y;
+    if (gap >= 60 && Math.abs(dy) >= 20) {
+      const row = Math.min(8, Math.max(1, Math.round(Math.abs(dy) / 90)));
+      const fraction = 0.22 + (1 - row / 8) * 0.56;
+      centerX = to.x + gap * (1 - fraction);
+    }
+  } else if (from.position === Position.Bottom && to.position === Position.Top) {
+    const gap = to.y - from.y;
+    const dx = to.x - from.x;
+    if (gap >= 60 && Math.abs(dx) >= 20) {
+      const col = Math.min(8, Math.max(1, Math.round(Math.abs(dx) / 120)));
+      const fraction = 0.22 + (1 - col / 8) * 0.56;
+      centerY = from.y + gap * fraction;
+    }
+  } else if (from.position === Position.Top && to.position === Position.Bottom) {
+    const gap = from.y - to.y;
+    const dx = to.x - from.x;
+    if (gap >= 60 && Math.abs(dx) >= 20) {
+      const col = Math.min(8, Math.max(1, Math.round(Math.abs(dx) / 120)));
+      const fraction = 0.22 + (1 - col / 8) * 0.56;
+      centerY = to.y + gap * (1 - fraction);
+    }
+  }
+
   const [path, labelX, labelY] = getSmoothStepPath({
     sourceX: from.x,
     sourceY: from.y,
@@ -87,13 +173,18 @@ export function DesignEdgeView({ id, source, target, data, selected }: EdgeProps
     targetY: to.y,
     targetPosition: to.position,
     borderRadius: 8,
+    centerX,
+    centerY,
   });
+  const lifted = data.lifted ?? 0;
   const style = STYLE[data.edge.kind];
-  // A dependency that breaks the layer rules is drawn red in the Layers perspective.
-  const stroke = selected ? "var(--primary)" : data.violation ? VIOLATION : style.stroke;
+  const isDimmed = data.dimmed;
+  const isHighlighted = data.highlighted || selected;
+  const stroke = isHighlighted ? "var(--primary)" : data.violation ? VIOLATION : style.stroke;
+  const strokeWidth = isHighlighted ? style.width + 1.25 : style.width;
+  const opacity = isDimmed ? 0.08 : lifted ? 0.55 : 1;
   // Lifted edge ids contain ":", which doesn't belong in a url(#…) reference.
   const marker = `pd-arrow-${id.replace(/[^A-Za-z0-9_-]/g, "_")}`;
-  const lifted = data.lifted ?? 0;
   return (
     <>
       <defs>
@@ -112,43 +203,47 @@ export function DesignEdgeView({ id, source, target, data, selected }: EdgeProps
       <BaseEdge
         id={id}
         path={path}
-        markerEnd={`url(#${marker})`}
+        markerEnd={isDimmed ? undefined : `url(#${marker})`}
         interactionWidth={16}
         style={{
           stroke,
-          strokeWidth: style.width + (selected ? 1 : 0),
+          strokeWidth,
+          opacity,
+          transition: "opacity 0.2s, stroke-width 0.2s",
           ...(style.dash ? { strokeDasharray: style.dash } : {}),
-          // Lifted edges are derived from nested ones: drawn fainter, never edited.
-          ...(lifted ? { opacity: 0.55 } : {}),
         }}
       />
-      <circle
-        cx={from.x}
-        cy={from.y}
-        r={3.5}
-        fill={stroke}
-        stroke="var(--background)"
-        strokeWidth={1.5}
-      />
-      <EdgeLabelRenderer>
-        <div
-          title={
-            lifted
-              ? `${lifted} connection${lifted === 1 ? "" : "s"} from nested components`
-              : undefined
-          }
-          className="nodrag nopan pointer-events-auto absolute rounded-full border bg-background px-2 py-0.5 text-[10px] leading-none font-medium shadow-xs"
-          style={{
-            transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
-            zIndex: Z.label,
-            borderColor: stroke,
-            color: `color-mix(in oklch, ${stroke} 70%, var(--foreground))`,
-          }}
-        >
-          {data.caption}
-          {lifted > 1 && ` ×${lifted}`}
-        </div>
-      </EdgeLabelRenderer>
+      {!isDimmed && (
+        <circle
+          cx={from.x}
+          cy={from.y}
+          r={3.5}
+          fill={stroke}
+          stroke="var(--background)"
+          strokeWidth={1.5}
+        />
+      )}
+      {!isDimmed && (
+        <EdgeLabelRenderer>
+          <div
+            title={
+              lifted
+                ? `${lifted} connection${lifted === 1 ? "" : "s"} from nested components`
+                : undefined
+            }
+            className="nodrag nopan pointer-events-auto absolute rounded-full border bg-background px-2 py-0.5 text-[10px] leading-none font-medium shadow-xs"
+            style={{
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              zIndex: isHighlighted ? Z.label + 1 : Z.label,
+              borderColor: stroke,
+              color: `color-mix(in oklch, ${stroke} 70%, var(--foreground))`,
+            }}
+          >
+            {data.caption}
+            {lifted > 1 && ` ×${lifted}`}
+          </div>
+        </EdgeLabelRenderer>
+      )}
     </>
   );
 }

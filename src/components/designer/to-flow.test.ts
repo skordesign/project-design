@@ -114,3 +114,31 @@ describe("levels view", () => {
     expect(toFlowNodes(doc, {}, new Set(), undefined)).toEqual(toFlowNodes(doc, {}, new Set()));
   });
 });
+
+describe("collapseDatastores option", () => {
+  it("collapses datastores with entities into summary nodes and hides internal entities", () => {
+    const uncollapsed = toFlowNodes(doc, {}, new Set());
+    const collapsed = toFlowNodes(doc, {}, new Set(), undefined, { collapseDatastores: true });
+
+    // In teamTasksDesign, dst_pg contains entities (e.g., ent_tasks, ent_projects)
+    const pg = collapsed.find((n) => n.id === "dst_pg")!;
+    expect(pg.type).toBe("summary");
+    expect(pg.data.collapsed).toBeGreaterThan(0);
+
+    // Entity nodes inside the collapsed datastore should be omitted
+    const entitiesInPg = collapsed.filter((n) => n.parentId === "dst_pg");
+    expect(entitiesInPg).toHaveLength(0);
+
+    // Uncollapsed version keeps dst_pg as datastore with child entities
+    const uncollapsedPg = uncollapsed.find((n) => n.id === "dst_pg")!;
+    expect(uncollapsedPg.type).toBe("datastore");
+    expect(uncollapsed.filter((n) => n.parentId === "dst_pg").length).toBeGreaterThan(0);
+  });
+
+  it("lifts edges targeting entities to the datastore itself", () => {
+    const edges = toFlowEdges(doc, new Set(), undefined, { collapseDatastores: true });
+    // An edge accessing an entity inside dst_pg should be lifted to dst_pg
+    const dbEdge = edges.find((e) => e.target === "dst_pg");
+    expect(dbEdge).toBeDefined();
+  });
+});

@@ -5,6 +5,7 @@ import { GET as getBrief } from "@/app/api/projects/[slug]/brief/route";
 import { GET as getDesign, PUT as putDesign } from "@/app/api/projects/[slug]/design/route";
 import { GET as getExport } from "@/app/api/projects/[slug]/export/route";
 import { GET as getRevision } from "@/app/api/projects/[slug]/revision/route";
+import { GET as getScaffold } from "@/app/api/projects/[slug]/scaffold/route";
 import { GET as getStatus } from "@/app/api/projects/[slug]/status/route";
 import { renderBrief } from "@/lib/design/brief";
 import { teamTasksDesign } from "@/lib/design/examples/team-tasks";
@@ -196,5 +197,49 @@ describe("REST routes", () => {
     const body = await res.json();
     expect(Object.keys(body.statuses)).toEqual(["svc_api"]);
     expect(body.statuses.svc_api).toMatchObject({ status: "blocked", note: "why" });
+  });
+
+  it("scaffold returns json and ascii tree", async () => {
+    await createProject(db, { ownerId: owner, name: "Team Tasks", document: teamTasksDesign });
+    const jsonRes = await getScaffold(new Request(url("/s?version=draft")), ctx("team-tasks"));
+    expect(jsonRes.status).toBe(200);
+    expect(jsonRes.headers.get("content-type")).toBe("application/json; charset=utf-8");
+    const jsonBody = await jsonRes.json();
+    expect(jsonBody.files.length).toBeGreaterThan(10);
+
+    const treeRes = await getScaffold(
+      new Request(url("/s?version=draft&format=tree")),
+      ctx("team-tasks"),
+    );
+    expect(treeRes.status).toBe(200);
+    expect(treeRes.headers.get("content-type")).toBe("text/plain; charset=utf-8");
+    const treeText = await treeRes.text();
+    expect(treeText).toContain(". (project root)");
+  });
+
+  it("scaffold resolves services by name and rejects bad input", async () => {
+    await createProject(db, { ownerId: owner, name: "Team Tasks", document: teamTasksDesign });
+
+    const byName = await getScaffold(
+      new Request(url("/s?version=draft&service=api")),
+      ctx("team-tasks"),
+    );
+    expect(byName.status).toBe(200);
+    const byNameBody = await byName.json();
+    const paths = byNameBody.files.map((f: { path: string }) => f.path);
+    expect(paths.some((p: string) => p.startsWith("apps/api/"))).toBe(true);
+    expect(paths.some((p: string) => p.startsWith("apps/web/"))).toBe(false);
+
+    const unknown = await getScaffold(
+      new Request(url("/s?version=draft&service=nope")),
+      ctx("team-tasks"),
+    );
+    expect(unknown.status).toBe(404);
+
+    const badFormat = await getScaffold(
+      new Request(url("/s?version=draft&format=xml")),
+      ctx("team-tasks"),
+    );
+    expect(badFormat.status).toBe(422);
   });
 });

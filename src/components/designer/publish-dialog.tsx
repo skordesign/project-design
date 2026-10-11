@@ -46,8 +46,8 @@ export function PublishDialog({ variant = "default" }: { variant?: "default" | "
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant={variant}>
-          <Rocket /> Publish
+        <Button size="sm" variant={variant} title="Publish a version">
+          <Rocket className="size-3.5" /> <span className="hidden sm:inline">Publish</span>
         </Button>
       </DialogTrigger>
       <DialogContent>

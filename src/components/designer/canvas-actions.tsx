@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useMemo, useRef, type RefObject } from "react";
 
+import type { ExportBackground } from "@/components/designer/export-image";
 import type { NodeKind } from "@/lib/design/schema";
 
 /** What the palette, inspector and validation panel can ask the canvas to do. */
@@ -15,11 +16,14 @@ export interface CanvasActions {
   /** Delete the selection, asking first when containers with children are included. */
   deleteSelection(): void;
   fitView(): void;
-  /** Arrange what the current view shows as a tree, then frame it. */
-  tidyLayout(): void;
+  /** Arrange what the current view shows with ELK layered flow, then frame it. */
+  tidyLayout(options?: { direction?: "RIGHT" | "DOWN" }): void;
   zoomIn(): void;
   zoomOut(): void;
   resetZoom(): void;
+  exportImage(format: "png" | "svg"): Promise<void>;
+  /** Renders the canvas to a data URL for in-dialog preview (null when unavailable). */
+  renderPreviewImage(format: "png" | "svg", background: ExportBackground): Promise<string | null>;
 }
 
 const noop: CanvasActions = {
@@ -28,10 +32,14 @@ const noop: CanvasActions = {
   focus() {},
   deleteSelection() {},
   fitView() {},
-  tidyLayout() {},
+  tidyLayout(_opts) {},
   zoomIn() {},
   zoomOut() {},
   resetZoom() {},
+  async exportImage() {},
+  async renderPreviewImage() {
+    return null;
+  },
 };
 
 const Ctx = createContext<RefObject<CanvasActions> | null>(null);
@@ -61,10 +69,12 @@ export function useCanvasActions(): CanvasActions {
       focus: (t) => ref.current.focus(t),
       deleteSelection: () => ref.current.deleteSelection(),
       fitView: () => ref.current.fitView(),
-      tidyLayout: () => ref.current.tidyLayout(),
+      tidyLayout: (opts) => ref.current.tidyLayout(opts),
       zoomIn: () => ref.current.zoomIn(),
       zoomOut: () => ref.current.zoomOut(),
       resetZoom: () => ref.current.resetZoom(),
+      exportImage: (f) => ref.current.exportImage(f),
+      renderPreviewImage: (f, b) => ref.current.renderPreviewImage(f, b),
     }),
     [ref],
   );

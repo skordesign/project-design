@@ -1,0 +1,270 @@
+import type { DesignDocumentInput } from "@/lib/design/schema";
+
+export const fullstackDesign: DesignDocumentInput = {
+  schemaVersion: 1,
+  overview: {
+    summary: "Clean 3-tier Fullstack Web Application with Next.js, REST API, and PostgreSQL.",
+    goals: ["Responsive web UI", "Typed REST API", "Relational persistent datastore"],
+    nonGoals: ["Complex microservices", "Multi-region deployment"],
+    architectureStyle: "modular-monolith",
+    architectureNotes: "Directional data flow: Client -> Web -> API -> PostgreSQL Database.",
+    repository: { layout: "monorepo", packageManager: "npm" },
+  },
+  stack: [
+    { id: "stk_lang", category: "language", name: "TypeScript", version: "5.9" },
+    { id: "stk_web", category: "framework", name: "Next.js", version: "16", scope: ["svc_web"] },
+    { id: "stk_api", category: "framework", name: "Fastify", version: "5", scope: ["svc_api"] },
+    { id: "stk_db", category: "database", name: "PostgreSQL", version: "18", scope: ["dst_pg"] },
+    { id: "stk_orm", category: "orm", name: "Drizzle ORM" },
+  ],
+  conventions: [
+    {
+      id: "cnv_api",
+      category: "error-handling",
+      level: "must",
+      rule: "All API responses follow standard JSON error schema.",
+    },
+  ],
+  decisions: [],
+  nodes: [
+    {
+      id: "act_user",
+      kind: "actor",
+      name: "User / Customer",
+      position: { x: 40, y: 120 },
+      data: { type: "human", goals: ["Access product features", "Manage personal account"] },
+    },
+    {
+      id: "svc_web",
+      kind: "service",
+      name: "Web Storefront",
+      position: { x: 340, y: 60 },
+      size: { width: 320, height: 220 },
+      data: {
+        type: "web-app",
+        language: "TypeScript",
+        framework: "Next.js",
+        path: "apps/web",
+        port: 3000,
+        responsibilities: ["User Interface", "Server-Side Rendering", "Client Authentication"],
+        env: [
+          {
+            name: "NEXT_PUBLIC_API_URL",
+            description: "Backend API endpoint",
+            example: "http://localhost:4000",
+          },
+        ],
+      },
+    },
+    {
+      id: "svc_api",
+      kind: "service",
+      name: "Core API Backend",
+      position: { x: 740, y: 60 },
+      size: { width: 340, height: 220 },
+      data: {
+        type: "api",
+        language: "TypeScript",
+        framework: "Fastify",
+        path: "apps/api",
+        port: 4000,
+        responsibilities: ["Business logic", "CRUD endpoints", "Database transactions"],
+        env: [{ name: "DATABASE_URL", description: "PostgreSQL connection string", secret: true }],
+      },
+    },
+    {
+      id: "dst_pg",
+      kind: "datastore",
+      name: "Primary Database",
+      position: { x: 1160, y: 60 },
+      size: { width: 320, height: 220 },
+      data: {
+        engine: "postgres",
+        version: "18",
+        purpose: "Persistent relational datastore",
+      },
+    },
+  ],
+  edges: [
+    {
+      id: "e_user_web",
+      kind: "interacts",
+      source: "act_user",
+      target: "svc_web",
+      data: { via: "browser" },
+    },
+    {
+      id: "e_web_api",
+      kind: "calls",
+      source: "svc_web",
+      target: "svc_api",
+      data: { protocol: "http" },
+    },
+    {
+      id: "e_api_db",
+      kind: "accesses",
+      source: "svc_api",
+      target: "dst_pg",
+      data: { mode: "read-write" },
+    },
+  ],
+};
+
+export const microservicesDesign: DesignDocumentInput = {
+  schemaVersion: 1,
+  overview: {
+    summary:
+      "Event-driven Microservices Architecture with API Gateway, Core Service, Kafka Queue, and Worker.",
+    goals: [
+      "Decoupled services",
+      "Asynchronous background processing",
+      "High throughput event ingestion",
+    ],
+    nonGoals: ["Single database sharing across all services"],
+    architectureStyle: "event-driven",
+    architectureNotes: "Strict async boundaries: Gateway -> Core Service -> Kafka -> Worker.",
+    repository: { layout: "monorepo", packageManager: "pnpm" },
+  },
+  stack: [
+    { id: "stk_lang", category: "language", name: "Go / TypeScript", version: "1.23" },
+    {
+      id: "stk_gw",
+      category: "framework",
+      name: "Envoy / Gin",
+      version: "1.30",
+      scope: ["svc_gw"],
+    },
+    { id: "stk_queue", category: "messaging", name: "Kafka", version: "3.7", scope: ["que_bus"] },
+    { id: "stk_db", category: "database", name: "PostgreSQL", version: "18", scope: ["dst_core"] },
+  ],
+  conventions: [],
+  decisions: [],
+  nodes: [
+    {
+      id: "act_client",
+      kind: "actor",
+      name: "API Clients / Mobile",
+      position: { x: 40, y: 140 },
+      data: { type: "system", goals: ["Consume public APIs", "Submit transactions"] },
+    },
+    {
+      id: "svc_gw",
+      kind: "service",
+      name: "API Gateway",
+      position: { x: 340, y: 80 },
+      size: { width: 300, height: 200 },
+      data: {
+        type: "api",
+        language: "Go",
+        framework: "Gin",
+        port: 8080,
+        responsibilities: [
+          "Rate limiting",
+          "Authentication & JWT validation",
+          "Reverse proxy routing",
+        ],
+        env: [],
+      },
+    },
+    {
+      id: "svc_core",
+      kind: "service",
+      name: "Order & Payment Service",
+      position: { x: 720, y: 80 },
+      size: { width: 340, height: 220 },
+      data: {
+        type: "api",
+        language: "Go",
+        framework: "gRPC",
+        port: 9000,
+        responsibilities: ["Order lifecycle", "Payment validation", "Emitting business events"],
+        env: [{ name: "DATABASE_URL", description: "Postgres connection string", secret: true }],
+      },
+    },
+    {
+      id: "que_bus",
+      kind: "queue",
+      name: "Event Bus (Kafka)",
+      position: { x: 1140, y: 40 },
+      data: {
+        technology: "kafka",
+        channels: [
+          {
+            id: "ch_orders",
+            name: "order.placed",
+            payload: {
+              fields: [
+                { name: "orderId", type: "uuid" },
+                { name: "amount", type: "decimal" },
+                { name: "customerId", type: "uuid" },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    {
+      id: "svc_worker",
+      kind: "service",
+      name: "Notification Worker",
+      position: { x: 1460, y: 40 },
+      size: { width: 300, height: 180 },
+      data: {
+        type: "worker",
+        language: "TypeScript",
+        framework: "Node.js",
+        responsibilities: ["Consume order events", "Send emails/SMS", "Third-party webhooks"],
+        env: [],
+      },
+    },
+    {
+      id: "dst_core",
+      kind: "datastore",
+      name: "Order Database",
+      position: { x: 740, y: 360 },
+      size: { width: 300, height: 160 },
+      data: {
+        engine: "postgres",
+        version: "18",
+        purpose: "Order records and ledger",
+      },
+    },
+  ],
+  edges: [
+    {
+      id: "e_client_gw",
+      kind: "interacts",
+      source: "act_client",
+      target: "svc_gw",
+      data: { via: "mobile/https" },
+    },
+    {
+      id: "e_gw_core",
+      kind: "calls",
+      source: "svc_gw",
+      target: "svc_core",
+      data: { protocol: "grpc" },
+    },
+    {
+      id: "e_core_db",
+      kind: "accesses",
+      source: "svc_core",
+      target: "dst_core",
+      data: { mode: "read-write" },
+    },
+    {
+      id: "e_core_queue",
+      kind: "publishes",
+      source: "svc_core",
+      target: "que_bus",
+      data: { channelId: "ch_orders" },
+    },
+    {
+      id: "e_queue_worker",
+      kind: "subscribes",
+      source: "svc_worker",
+      target: "que_bus",
+      data: { channelId: "ch_orders" },
+    },
+  ],
+};

@@ -1,6 +1,7 @@
 import { ZodError } from "zod";
 
 import { DesignIntegrityError } from "@/lib/design/integrity";
+import { ScaffoldError } from "@/lib/design/scaffold";
 import { AppError, type AppErrorCode } from "@/server/errors";
 
 export const MAX_DESIGN_BYTES = 5 * 1024 * 1024;
@@ -26,6 +27,9 @@ export function errorResponse(error: unknown): Response {
   }
   if (error instanceof DesignIntegrityError) {
     return Response.json(body("VALIDATION", error.message, error.issues), { status: 422 });
+  }
+  if (error instanceof ScaffoldError) {
+    return Response.json(body("VALIDATION", error.message), { status: 422 });
   }
   if (error instanceof ZodError) {
     return Response.json(body("VALIDATION", "Invalid input", error.issues), { status: 422 });

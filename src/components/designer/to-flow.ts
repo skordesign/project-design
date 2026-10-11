@@ -26,8 +26,16 @@ export type FlowEdgeData = {
   lifted?: number;
   /** Layers perspective: the dependency breaks the layer rules. */
   violation?: boolean;
+  /** Focus mode: whether this edge is dimmed. */
+  dimmed?: boolean;
+  /** Focus mode: whether this edge is highlighted. */
+  highlighted?: boolean;
 };
 export type FlowEdge = Edge<FlowEdgeData>;
+
+export interface FlowOptions {
+  collapseDatastores?: boolean;
+}
 
 /**
  * Stacking order (the canvas runs React Flow with zIndexMode="manual"): containers by nesting
@@ -50,14 +58,49 @@ export function toFlowNodes(
   statuses: Record<string, { status: ComponentStatus; note: string }>,
   selected: ReadonlySet<string>,
   view?: LevelView,
+  options?: FlowOptions,
 ): FlowNode[] {
   if (view) return levelNodes(view, statuses, selected);
+
+  const collapseDatastores = options?.collapseDatastores ?? false;
+  const datastoreMap = new Map<string, number>();
+  if (collapseDatastores) {
+    for (const n of doc.nodes) {
+      if (n.kind === "datastore") datastoreMap.set(n.id, 0);
+    }
+    for (const n of doc.nodes) {
+      if (n.parentId && datastoreMap.has(n.parentId)) {
+        datastoreMap.set(n.parentId, (datastoreMap.get(n.parentId) ?? 0) + 1);
+      }
+    }
+  }
+
   // doc.nodes is stored parents-first, which React Flow requires.
   const depth = depths(doc.nodes);
-  return doc.nodes.map((n) => {
-    const container = NODE_KIND_META[n.kind].container;
+  const result: FlowNode[] = [];
+
+  for (const n of doc.nodes) {
+    // If entity inside a collapsed datastore, omit it from the canvas
+    if (collapseDatastores && n.parentId && (datastoreMap.get(n.parentId) ?? 0) > 0) {
+      continue;
+    }
     const status = statuses[n.id] ?? null;
-    return {
+    const isCollapsedDatastore = collapseDatastores && (datastoreMap.get(n.id) ?? 0) > 0;
+
+    if (isCollapsedDatastore) {
+      result.push({
+        id: n.id,
+        type: "summary",
+        position: n.position,
+        data: { node: n, status, collapsed: datastoreMap.get(n.id) },
+        selected: selected.has(n.id),
+        zIndex: cardZ(selected.has(n.id)),
+      });
+      continue;
+    }
+
+    const container = NODE_KIND_META[n.kind].container;
+    result.push({
       id: n.id,
       type: n.kind,
       position: n.position,
@@ -66,8 +109,10 @@ export function toFlowNodes(
       ...(container ? { width: nodeSize(n).width, height: nodeSize(n).height } : {}),
       selected: selected.has(n.id),
       zIndex: container ? depth.get(n.id)! : cardZ(selected.has(n.id)),
-    };
-  });
+    });
+  }
+
+  return result;
 }
 
 function levelNodes(
@@ -95,7 +140,7 @@ function levelNodes(
       position,
       ...(parentId ? { parentId } : {}),
       // A focused module sits at a made-up position: there is nothing to drag it to.
-      ...(view.focus?.kind === "module" ? { draggable: false } : {}),
+      ...(view.focus?.kind === "module" && n.id === view.focus.id ? { draggable: false } : {}),
       data: { node: n, status },
       ...(container ? { width: nodeSize(n).width, height: nodeSize(n).height } : {}),
       selected: selected.has(n.id),
@@ -189,6 +234,7 @@ export function toFlowEdges(
   doc: DesignDocument,
   selected: ReadonlySet<string>,
   view?: LevelView,
+  options?: FlowOptions,
 ): FlowEdge[] {
   const nodes = new Map(doc.nodes.map((n) => [n.id, n]));
   if (view) {
@@ -208,16 +254,89 @@ export function toFlowEdges(
       zIndex: Z.edge,
     }));
   }
-  return doc.edges.map((e) => ({
-    id: e.id,
-    source: e.source,
-    target: e.target,
-    type: "design",
-    data: { edge: e, caption: edgeCaption(e, nodes) },
-    animated: e.kind === "publishes" || e.kind === "subscribes",
-    selected: selected.has(e.id),
-    zIndex: Z.edge,
-  }));
+
+  const collapseDatastores = options?.collapseDatastores ?? false;
+  if (!collapseDatastores) {
+    return doc.edges.map((e) => ({
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      type: "design",
+      data: { edge: e, caption: edgeCaption(e, nodes) },
+      animated: e.kind === "publishes" || e.kind === "subscribes",
+      selected: selected.has(e.id),
+      zIndex: Z.edge,
+    }));
+  }
+
+  // Map entity -> datastore id
+  const datastoreIds = new Set(doc.nodes.filter((n) => n.kind === "datastore").map((n) => n.id));
+  const entityToDatastore = new Map<string, string>();
+  for (const n of doc.nodes) {
+    if (n.parentId && datastoreIds.has(n.parentId)) {
+      entityToDatastore.set(n.id, n.parentId);
+    }
+  }
+
+  const lifted = new Map<
+    string,
+    { id: string; source: string; target: string; edge: DesignEdge; count: number }
+  >();
+  const directEdges: FlowEdge[] = [];
+  const realKeys = new Set<string>();
+
+  for (const e of doc.edges) {
+    const s = entityToDatastore.get(e.source) ?? e.source;
+    const t = entityToDatastore.get(e.target) ?? e.target;
+    if (s === t) continue; // internal edge between entities of same datastore
+
+    if (s === e.source && t === e.target) {
+      realKeys.add(`${e.kind}:${s}:${t}`);
+      directEdges.push({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        type: "design",
+        data: { edge: e, caption: edgeCaption(e, nodes) },
+        animated: e.kind === "publishes" || e.kind === "subscribes",
+        selected: selected.has(e.id),
+        zIndex: Z.edge,
+      });
+    } else {
+      const key = `${e.kind}:${s}:${t}`;
+      const existing = lifted.get(key);
+      if (existing) {
+        existing.count++;
+      } else {
+        lifted.set(key, { id: `lift:${key}`, source: s, target: t, edge: e, count: 1 });
+      }
+    }
+  }
+
+  const liftedFlowEdges: FlowEdge[] = [];
+  for (const [key, item] of lifted) {
+    if (!realKeys.has(key)) {
+      liftedFlowEdges.push({
+        id: item.id,
+        source: item.source,
+        target: item.target,
+        type: "design",
+        data: {
+          edge: item.edge,
+          caption:
+            item.count > 1 ? EDGE_KIND_META[item.edge.kind].label : edgeCaption(item.edge, nodes),
+          lifted: item.count,
+        },
+        animated: item.edge.kind === "publishes" || item.edge.kind === "subscribes",
+        selected: false,
+        selectable: false,
+        deletable: false,
+        zIndex: Z.edge,
+      });
+    }
+  }
+
+  return [...directEdges, ...liftedFlowEdges];
 }
 
 export function perspectiveEdges(

@@ -55,9 +55,9 @@
 
 ## 2. Scope
 
-**In (v1):** everything in §1. That covers the projects list (create blank or from example, rename, duplicate, delete, import/export JSON) and the canvas designer (palette, nesting, typed connections, inspector forms for all kinds, undo/redo, autosave, validation panel, component status badges). It also covers the project sections (Overview, Stack, Conventions, Decisions, Brief preview, Versions with publish, diff and restore), the MCP tokens settings page, the full MCP surface, Docker and Compose, and README.
+**In (v1):** everything in §1. That covers the projects list (create blank, from example, or from archetype templates; rename, duplicate, delete, import/export JSON) and the canvas designer (palette, nesting, typed connections, inspector forms for all kinds, undo/redo, autosave, validation panel, component status badges, walkthrough flow player, high-res PNG/SVG export, Mermaid flow/sequence export, SQL DDL export). It also covers the project sections (Overview, Stack, Conventions, Decisions, Brief preview, Versions with publish, diff and restore), the MCP tokens settings page, the full MCP surface, Feishu card integration, Docker and Compose, and README.
 
-**Out (later; don't build now):** teams, sharing, permissions beyond per-user ownership; real-time multi-user editing; OAuth for MCP; generating code inside the app; reverse-engineering a design from an existing repo; automatic layout (elkjs); canvas PNG/SVG export; comments; templates gallery beyond the one example; i18n; a native-app shell; host allow-listing / DNS-rebinding protection for the unauthenticated UI (document the localhost-only default instead).
+**Out (later; don't build now):** teams, sharing, permissions beyond per-user ownership; real-time multi-user editing; OAuth for MCP; generating code inside the app; reverse-engineering a design from an existing repo; comments; i18n; a native-app shell; host allow-listing / DNS-rebinding protection for the unauthenticated UI (document the localhost-only default instead). Flow layout uses elkjs layered (untidy canvases auto-arrange along the flow on open; lazy-loaded so the initial bundle stays light).
 
 ## 3. Tech stack (pinned, VERIFIED compatible on 2026-10-08)
 
@@ -71,6 +71,7 @@
 | shadcn (CLI, devDependency) | 4.21.4 | `globals.css` imports `shadcn/tailwind.css`; preset `radix-nova`; components import `cn` from the `cn` package |
 | radix-ui, cn, class-variance-authority, tw-animate-css, cmdk, sonner, next-themes, lucide-react | ^1.7.0, ^0.4.0, ^0.7.1, ^1.4.0, ^1.1.1, ^2.0.8, ^0.4.6, ^1.52.0 | Pulled in by shadcn components |
 | @xyflow/react | ^12.12.0 | Import `@xyflow/react/dist/style.css` once in the canvas component |
+| elkjs | ^0.12.0 | Flow layout (`layout-elk.ts`, layered RIGHT, lazy `import()` so the initial bundle stays light) |
 | zustand / zundo | ^5.0.15 / ^2.3.0 | `zustand/vanilla` `createStore` + `temporal` |
 | zod | ^4.6.5 | Use `z.url()` (not `z.string().url()`), `.prefault({})` for nested object defaults, `z.toJSONSchema` |
 | drizzle-orm / drizzle-kit / pg / @types/pg | ^0.45.3 / ^0.31.11 / ^8.23.1 / ^8.23.1 | Turbopack bundles drizzle; `pg` stays external |
@@ -731,7 +732,8 @@ Tests (`tests/rest.integration.test.ts`): call the exported handlers directly wi
   - Spacer.
   - `Validate` button with a count badge (errors red, else warnings amber) that toggles the validation panel.
   - `Publish` (dialog: label, notes → `publishVersionAction`, toast "Published v4").
-  - `Export ▾` (Design JSON, Markdown brief).
+  - `Export` (dialog: diagram as PNG / SVG / PDF / MMD diagram-as-code with live preview
+    and background choice, plus Design JSON, Markdown brief and SQL DDL).
   - `Connect agent` (dialog with the §9.7 snippets and a link to `/settings`).
 - **Tabs** (links, not client tabs): Canvas · Overview · Stack · Conventions · Decisions · Brief · Versions.
 - `DesignerStoreProvider` (`store-provider.tsx`, client) holds `useState(() => createDesignerStore(initial))`, a React context, and `useDesigner(selector)` built on `useStore(store, selector)`. It also provides `useTemporal()` for undo/redo state, `useProjectMeta()` (`{ name, slug, description }` from the loader; the Brief tab needs it) and `saveNow()` from `<Autosave>`.

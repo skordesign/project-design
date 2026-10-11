@@ -23,6 +23,7 @@ import { reparentNode, type Point } from "@/lib/design/geometry";
 import { newEdgeId, newNodeId } from "@/lib/design/ids";
 import { safeParseDesign, sortNodesParentFirst } from "@/lib/design/integrity";
 import { arrangeLayout } from "@/lib/design/layout";
+import { arrangeLayoutElk, type ArrangeLayoutElkOptions } from "@/lib/design/layout-elk";
 import {
   EdgeSchema,
   NodeSchema,
@@ -61,6 +62,8 @@ export interface DesignerState {
   setParent(id: string, parentId: string | null): void;
   /** Auto-arranges the top level (null) or a container's inside as a tree (one undo step). */
   arrangeLayout(rootId: string | null, options?: { collapsed?: boolean }): void;
+  /** Auto-arranges along the flow with ELK layered layout (one undo step, async). Falls back to the tree layout when ELK fails. */
+  arrangeLayoutElk(rootId: string | null, options?: ArrangeLayoutElkOptions): Promise<void>;
   /** Returns the new edge id, or null if the connection is not allowed or exists. */
   connect(source: string, target: string, kind?: EdgeKind): string | null;
   updateEdge(id: string, update: (edge: DesignEdge) => DesignEdge): void;
@@ -163,6 +166,17 @@ export function createDesignerStore(init: {
 
           arrangeLayout(rootId, options) {
             mutate((doc) => arrangeLayout(doc, rootId, options));
+          },
+
+          async arrangeLayoutElk(rootId, options) {
+            if (get().readOnly) return;
+            try {
+              const next = await arrangeLayoutElk(get().document, rootId, options);
+              mutate(() => next);
+            } catch {
+              // ELK failed (e.g. huge graph): fall back to the sync tree layout.
+              mutate((doc) => arrangeLayout(doc, rootId, options));
+            }
           },
 
           connect(source, target, kind) {

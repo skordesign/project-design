@@ -20,7 +20,7 @@ export function PerspectiveSwitch() {
     <div
       role="radiogroup"
       aria-label="Perspective"
-      className="inline-flex items-center gap-0.5 rounded-lg border bg-muted p-0.5 shadow-xs"
+      className="inline-flex items-center gap-0.5 rounded-full bg-muted/60 p-0.5"
     >
       {PERSPECTIVES.map((p) => {
         const Icon = ICON[p];
@@ -33,15 +33,15 @@ export function PerspectiveSwitch() {
                 role="radio"
                 aria-checked={active}
                 className={cn(
-                  "flex h-7 items-center gap-1.5 rounded-md px-2.5 text-sm transition-colors [&_svg]:size-3.5",
+                  "flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs transition-colors [&_svg]:size-3.5",
                   active
-                    ? "bg-background font-medium text-foreground shadow-xs"
+                    ? "bg-background font-semibold text-foreground shadow-2xs"
                     : "text-muted-foreground hover:text-foreground",
                 )}
                 onClick={() => useCanvasUi.getState().setPerspective(p)}
               >
                 <Icon aria-hidden />
-                {PERSPECTIVE_META[p].label}
+                <span>{PERSPECTIVE_META[p].label}</span>
               </button>
             </TooltipTrigger>
             <TooltipContent>{PERSPECTIVE_META[p].description}</TooltipContent>

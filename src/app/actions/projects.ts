@@ -32,10 +32,12 @@ function invalid(error: z.ZodError): { ok: false; error: { code: string; message
   };
 }
 
+import { fullstackDesign, microservicesDesign } from "@/lib/design/examples/archetypes";
+
 const CreateInput = z.object({
   name: Name,
   description: Description.default(""),
-  template: z.enum(["blank", "example", "game", "game-example"]).default("blank"),
+  template: z.enum(["blank", "example", "fullstack", "microservices", "game", "game-example"]).default("blank"),
 });
 
 const BLANK_GAME_DESIGN: DesignDocumentInput = { schemaVersion: 1, overview: { mode: "game" } };
@@ -44,6 +46,10 @@ function templateDocument(template: z.infer<typeof CreateInput>["template"]) {
   switch (template) {
     case "example":
       return teamTasksDesign;
+    case "fullstack":
+      return fullstackDesign;
+    case "microservices":
+      return microservicesDesign;
     case "game":
       return BLANK_GAME_DESIGN;
     case "game-example":

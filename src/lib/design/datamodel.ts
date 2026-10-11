@@ -123,3 +123,118 @@ export function toMermaidEr(model: DataModel): string {
   }
   return lines.join("\n") + "\n";
 }
+
+/**
+ * Generates standard SQL DDL (PostgreSQL-compatible) from the entity definitions in a DataModel.
+ */
+export function toSqlDdl(model: DataModel): string {
+  const entities = [...model.datastores.flatMap((d) => d.entities), ...model.domainModels];
+  if (entities.length === 0) return "-- No entities defined in data model\n";
+
+  const lines: string[] = ["-- Generated SQL DDL Schema", "-- Target: PostgreSQL", ""];
+
+  for (const entity of entities) {
+    const tableName = entity.name.toLowerCase().replace(/[^a-z0-9_]/g, "_");
+    lines.push(`-- Table: ${entity.name}`);
+    if (entity.description) {
+      lines.push(`-- Description: ${entity.description.replace(/\n/g, " ")}`);
+    }
+    lines.push(`CREATE TABLE IF NOT EXISTS "${tableName}" (`);
+
+    const colLines: string[] = [];
+    for (const f of entity.fields) {
+      const colName = f.name.toLowerCase().replace(/[^a-z0-9_]/g, "_");
+      let colType = "VARCHAR(255)";
+      switch (f.type) {
+        case "uuid":
+          colType = "UUID";
+          break;
+        case "int":
+          colType = "INTEGER";
+          break;
+        case "float":
+          colType = "DOUBLE PRECISION";
+          break;
+        case "decimal":
+          colType = "NUMERIC(14, 2)";
+          break;
+        case "boolean":
+          colType = "BOOLEAN";
+          break;
+        case "date":
+          colType = "DATE";
+          break;
+        case "datetime":
+          colType = "TIMESTAMPTZ";
+          break;
+        case "text":
+          colType = "TEXT";
+          break;
+        case "json":
+          colType = "JSONB";
+          break;
+        case "enum":
+          colType = "VARCHAR(64)";
+          break;
+        case "email":
+        case "url":
+        case "string":
+        default:
+          colType = "VARCHAR(255)";
+          break;
+      }
+
+      if (f.list) colType = `${colType}[]`;
+
+      const constraints: string[] = [];
+      if (f.primary) constraints.push("PRIMARY KEY");
+      if (f.required && !f.primary) constraints.push("NOT NULL");
+      if (f.unique && !f.primary) constraints.push("UNIQUE");
+      if (f.default !== null && f.default !== undefined) {
+        constraints.push(`DEFAULT ${f.default}`);
+      }
+
+      const constrStr = constraints.length > 0 ? ` ${constraints.join(" ")}` : "";
+      colLines.push(`  "${colName}" ${colType}${constrStr}`);
+    }
+
+    if (colLines.length === 0) {
+      colLines.push('  "id" UUID PRIMARY KEY DEFAULT gen_random_uuid()');
+    }
+
+    lines.push(colLines.join(",\n"));
+    lines.push(");");
+    lines.push("");
+
+    // Indexes
+    for (const idx of entity.indexes || []) {
+      const idxCols = idx.fields.map((col) => `"${col.toLowerCase()}"`).join(", ");
+      const idxName = `idx_${tableName}_${idx.fields.join("_").toLowerCase()}`;
+      const uniqueKw = idx.unique ? "UNIQUE " : "";
+      lines.push(
+        `CREATE ${uniqueKw}INDEX IF NOT EXISTS "${idxName}" ON "${tableName}" (${idxCols});`,
+      );
+    }
+
+    if ((entity.indexes || []).length > 0) {
+      lines.push("");
+    }
+  }
+
+  // Foreign keys
+  for (const r of model.relations) {
+    if (!r.foreignKey) continue;
+    const fromTable = r.from.name.toLowerCase().replace(/[^a-z0-9_]/g, "_");
+    const toTable = r.to.name.toLowerCase().replace(/[^a-z0-9_]/g, "_");
+    const fkCol = r.foreignKey.toLowerCase().replace(/[^a-z0-9_]/g, "_");
+    const fkName = `fk_${toTable}_${fromTable}`;
+    const onDel = r.onDelete ? ` ON DELETE ${r.onDelete.toUpperCase()}` : "";
+    lines.push(
+      `-- Relation: ${r.from.name} -> ${r.to.name}`,
+      `ALTER TABLE "${toTable}" ADD CONSTRAINT "${fkName}" FOREIGN KEY ("${fkCol}") REFERENCES "${fromTable}" ("id")${onDel};`,
+      "",
+    );
+  }
+
+  return lines.join("\n") + "\n";
+}

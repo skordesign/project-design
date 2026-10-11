@@ -36,11 +36,12 @@ export function registerPrompts(server: McpServer, ctx: McpContext) {
       const subject = p ? `the project "${p.name}" (\`${p.slug}\`)` : "the project";
       return user(
         `You are implementing ${subject} from its design in the project-design MCP server.\n` +
-          "1. Call `get_project_brief` and read all of it. MUST conventions and layer rules are hard constraints.\n" +
-          "2. Call `get_build_plan` and work through the steps in order. For each step, call `get_component` (and `get_api_contract` / `get_data_model` where relevant) before writing code.\n" +
-          "3. Call `set_component_status` with `in_progress` when you start a step. Set `done` once it builds and its tests pass, or `blocked` with a note that explains why.\n" +
-          "4. Don't invent components, endpoints, fields or dependencies that are not in the design. If the design is missing something you need, stop and say exactly what is missing.\n" +
-          "5. When you're finished, call `validate_design` and report anything that affected the implementation.",
+          "COMPLIANCE RULES (a CI gate calls get_compliance_report on this work):\n" +
+          "- Read `get_design_schema` once and `get_project_brief` in full BEFORE writing any code. MUST conventions and layer rules are hard constraints, not suggestions.\n" +
+          "- Work through `get_build_plan` in order. For each step, call `get_component` (and `get_api_contract` / `get_data_model` where relevant) before writing code.\n" +
+          "- Report every step with `set_component_status`: `in_progress` when you start it, `done` only once it builds and its tests pass, `blocked` with a note when the design stops you. Never leave a started step unreported, and never mark `done` what you have not run.\n" +
+          "1. Don't invent components, endpoints, fields or dependencies that are not in the design. If the design is missing something you need, set the step `blocked` and say exactly what is missing.\n" +
+          "2. When you're finished, call `validate_design` and `get_compliance_report`, and report anything that affected the implementation.",
       );
     },
   );

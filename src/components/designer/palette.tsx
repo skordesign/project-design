@@ -64,38 +64,46 @@ function PaletteButton({
   kind,
   layout,
   selectedKind,
+  focusKind,
   onAdd,
 }: {
   kind: NodeKind;
   layout: PaletteLayout;
   selectedKind: NodeKind | null;
+  focusKind: NodeKind | null;
   onAdd: (kind: NodeKind) => void;
 }) {
   const meta = NODE_KIND_META[kind];
   const style = KIND_STYLE[kind];
   const Icon = style.icon;
   const needsParent = !canContain(null, kind);
-  const disabled = needsParent && !(selectedKind && canContain(selectedKind, kind));
+  const canClickAdd =
+    !needsParent ||
+    Boolean(
+      (selectedKind && canContain(selectedKind, kind)) ||
+      (focusKind &&
+        (focusKind === "module"
+          ? true
+          : canContain(focusKind, kind) || (kind === "layer" && focusKind === "layer"))),
+    );
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <button
           type="button"
-          draggable={!disabled}
+          draggable
           aria-label={`Add ${meta.label}`}
-          aria-disabled={disabled || undefined}
           onDragStart={(e) => {
             e.dataTransfer.setData(DRAG_MIME, kind);
             e.dataTransfer.effectAllowed = "copy";
           }}
-          onClick={() => !disabled && onAdd(kind)}
+          onClick={() => onAdd(kind)}
           className={cn(
             "group relative flex w-full min-w-0 cursor-grab items-center rounded-lg border text-left transition-all active:cursor-grabbing",
             layout === "grid"
               ? "h-9 gap-2 border-border/70 bg-card/75 px-2 py-1.5 shadow-2xs hover:border-primary/40 hover:bg-accent/80 hover:shadow-xs"
               : "h-8.5 gap-2.5 border-border/60 bg-card/60 px-2.5 py-1.5 shadow-2xs hover:border-primary/40 hover:bg-accent/80",
-            disabled && "cursor-not-allowed opacity-45 hover:border-border/60 hover:bg-card/60",
           )}
         >
           <span
@@ -158,10 +166,13 @@ function PaletteButton({
           )}
         </div>
         <p className="text-xs text-muted-foreground leading-relaxed">{meta.description}</p>
-        {disabled ? (
-          <p className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
-            Requires parent: {meta.parents.filter(Boolean).join(" or ")}
-          </p>
+        {needsParent && !canClickAdd ? (
+          <div className="flex flex-col gap-1 border-t border-border/40 pt-1.5 text-[10px] text-muted-foreground">
+            <span className="font-medium text-amber-600 dark:text-amber-400">
+              Requires container: {meta.parents.filter(Boolean).join(" or ")}
+            </span>
+            <span>Drag onto a container, or select one and click to add</span>
+          </div>
         ) : (
           <div className="flex items-center gap-2 border-t border-border/40 pt-1.5 text-[10px] text-muted-foreground/70">
             <span>Click to add</span>
@@ -186,6 +197,10 @@ function PaletteContent() {
   );
   const mode = useDesigner((s) => s.document.overview.mode);
   const categories = mode === "game" ? GAME_CATEGORIES : SOFTWARE_CATEGORIES;
+  const focusId = useCanvasUi((s) => s.focusId);
+  const focusKind = useDesigner(
+    (s) => (focusId ? s.document.nodes.find((n) => n.id === focusId)?.kind ?? null : null),
+  );
 
   return (
     <div className="flex w-full flex-1 flex-col gap-3 p-2.5">
@@ -239,7 +254,13 @@ function PaletteContent() {
                 kind={kind}
                 layout={paletteLayout}
                 selectedKind={selectedKind}
-                onAdd={(k) => actions.addNodeAtCenter(k)}
+                focusKind={focusKind}
+                onAdd={(k) => {
+                  actions.addNodeAtCenter(k);
+                  if (typeof window !== "undefined" && window.innerWidth < 768) {
+                    useCanvasUi.getState().setLeftSidebarOpen(false);
+                  }
+                }}
               />
             ))}
           </div>
@@ -381,7 +402,12 @@ function ExplorerContent() {
                 <button
                   key={node.id}
                   type="button"
-                  onClick={() => handleSelectNode(node.id)}
+                  onClick={() => {
+                    handleSelectNode(node.id);
+                    if (typeof window !== "undefined" && window.innerWidth < 768) {
+                      useCanvasUi.getState().setLeftSidebarOpen(false);
+                    }
+                  }}
                   className={cn(
                     "group flex w-full items-start gap-2 rounded-lg p-2 text-left text-xs transition-colors hover:bg-muted/60",
                     isSelected && "border border-primary/40 bg-primary/5 font-medium",
@@ -424,7 +450,7 @@ export function Palette() {
   const setPaletteLayout = useCanvasUi((s) => s.setPaletteLayout);
   const document = useDesigner((s) => s.document);
 
-  // Restore saved palette layout preference from localStorage on mount
+  // Restore saved palette layout preference from localStorage on mount & auto-collapse on mobile
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem(PALETTE_LAYOUT_KEY);
@@ -434,13 +460,16 @@ export function Palette() {
     } catch {
       // Storage unavailable
     }
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      useCanvasUi.getState().setLeftSidebarOpen(false);
+    }
   }, [setPaletteLayout]);
 
   if (!isOpen) {
     return (
       <aside
         aria-label="Collapsed sidebar"
-        className="flex w-11 shrink-0 flex-col items-center border-r bg-background/95 py-2 backdrop-blur-sm transition-all"
+        className="hidden md:flex w-11 shrink-0 flex-col items-center border-r bg-background/95 py-2 backdrop-blur-sm transition-all"
       >
         <Tooltip>
           <TooltipTrigger asChild>
@@ -493,61 +522,69 @@ export function Palette() {
   }
 
   return (
-    <aside
-      aria-label="Components and Explorer"
-      className="flex w-68 shrink-0 flex-col overflow-hidden border-r bg-background/95 backdrop-blur-sm transition-all"
-    >
-      {/* Header with Tabs and Collapse button */}
-      <header className="flex h-12 shrink-0 items-center justify-between border-b px-3">
-        <div className="flex items-center gap-1 rounded-lg bg-muted/80 p-0.5">
-          <button
-            type="button"
-            onClick={() => setTab("palette")}
-            className={cn(
-              "flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors",
-              activeTab === "palette"
-                ? "bg-background text-foreground shadow-2xs"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <Plus className="size-3.5" />
-            Add
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("explorer")}
-            className={cn(
-              "flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors",
-              activeTab === "explorer"
-                ? "bg-background text-foreground shadow-2xs"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <FolderTree className="size-3.5" />
-            Explorer
-          </button>
-        </div>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              onClick={toggleOpen}
-              aria-label="Collapse sidebar ([)"
-              className="size-7 text-muted-foreground hover:text-foreground"
+    <>
+      {/* Mobile backdrop */}
+      <div
+        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs md:hidden"
+        onClick={toggleOpen}
+        aria-hidden
+      />
+      <aside
+        aria-label="Components and Explorer"
+        className="fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col overflow-hidden border-r bg-background shadow-2xl transition-all md:relative md:z-auto md:w-68 md:max-w-none md:shadow-none"
+      >
+        {/* Header with Tabs and Collapse button */}
+        <header className="flex h-12 shrink-0 items-center justify-between border-b px-3">
+          <div className="flex items-center gap-1 rounded-lg bg-muted/80 p-0.5">
+            <button
+              type="button"
+              onClick={() => setTab("palette")}
+              className={cn(
+                "flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors",
+                activeTab === "palette"
+                  ? "bg-background text-foreground shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
             >
-              <PanelLeftClose className="size-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">Collapse sidebar ([)</TooltipContent>
-        </Tooltip>
-      </header>
+              <Plus className="size-3.5" />
+              Add
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("explorer")}
+              className={cn(
+                "flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors",
+                activeTab === "explorer"
+                  ? "bg-background text-foreground shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <FolderTree className="size-3.5" />
+              Explorer
+            </button>
+          </div>
 
-      {/* Body Content */}
-      <div className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto">
-        {activeTab === "palette" ? <PaletteContent /> : <ExplorerContent />}
-      </div>
-    </aside>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={toggleOpen}
+                aria-label="Collapse sidebar ([)"
+                className="size-7 text-muted-foreground hover:text-foreground"
+              >
+                <PanelLeftClose className="size-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Collapse sidebar ([)</TooltipContent>
+          </Tooltip>
+        </header>
+
+        {/* Body Content */}
+        <div className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto">
+          {activeTab === "palette" ? <PaletteContent /> : <ExplorerContent />}
+        </div>
+      </aside>
+    </>
   );
 }

@@ -42,6 +42,7 @@ import { LevelBreadcrumb } from "@/components/designer/level-breadcrumb";
 import { KIND_STYLE } from "@/components/designer/nodes/kind-style";
 import { nodeTypes } from "@/components/designer/nodes";
 import { DRAG_MIME, Palette } from "@/components/designer/palette";
+import { FlowTagFilter } from "@/components/designer/flow-tag-filter";
 import { PerspectiveSwitch } from "@/components/designer/perspective-switch";
 import {
   useDesigner,
@@ -55,11 +56,15 @@ import {
   toFlowEdges,
   toFlowNodes,
   type FlowEdge,
+  type FlowEdgeData,
   type FlowNode,
+  type FlowOptions,
 } from "@/components/designer/to-flow";
 import { Toolbar } from "@/components/designer/toolbar";
 import { useStatuses } from "@/components/designer/use-statuses";
 import { ValidationPanel } from "@/components/designer/validation-panel";
+import { WalkthroughPlayer } from "@/components/designer/walkthrough-player";
+import { exportCanvasImage, renderCanvasDataUrl } from "@/components/designer/export-image";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -80,6 +85,7 @@ import {
   type Point,
 } from "@/lib/design/geometry";
 import { isFocusable, levelOf, levelView, type LevelView } from "@/lib/design/levels";
+import { needsAutoLayout } from "@/lib/design/layout-elk";
 import {
   designIdOf,
   perspectiveView,
@@ -134,6 +140,7 @@ function flowFor(
   statuses: Parameters<typeof toFlowNodes>[1],
   selected: ReadonlySet<string>,
   ui: UiView,
+  options?: FlowOptions,
 ): { nodes: FlowNode[]; edges: FlowEdge[] } {
   const lens = lensFor(doc, ui);
   if (lens)
@@ -143,8 +150,8 @@ function flowFor(
     };
   const view = viewFor(doc, ui);
   return {
-    nodes: toFlowNodes(doc, statuses, selected, view),
-    edges: toFlowEdges(doc, selected, view),
+    nodes: toFlowNodes(doc, statuses, selected, view, options),
+    edges: toFlowEdges(doc, selected, view, options),
   };
 }
 
@@ -176,6 +183,9 @@ function Flow({ wide }: { wide: boolean }) {
   const perspective = useCanvasUi((s) => s.perspective);
   const viewMode = useCanvasUi((s) => s.viewMode);
   const focusId = useCanvasUi((s) => s.focusId);
+  const focusMode = useCanvasUi((s) => s.focusMode);
+  const collapseDatastores = useCanvasUi((s) => s.collapseDatastores);
+  const activeTag = useCanvasUi((s) => s.activeTag);
   const ui = useMemo(() => ({ perspective, viewMode, focusId }), [perspective, viewMode, focusId]);
   const view = useMemo(() => viewFor(document, ui), [document, ui]);
   const lens = useMemo(() => lensFor(document, ui), [document, ui]);
@@ -190,12 +200,35 @@ function Flow({ wide }: { wide: boolean }) {
   const [savedViewport] = useState(() => readViewport(slug));
 
   const [initial] = useState(() =>
-    flowFor(store.getState().document, {}, NONE, useCanvasUi.getState()),
+    flowFor(store.getState().document, {}, NONE, useCanvasUi.getState(), {
+      collapseDatastores: useCanvasUi.getState().collapseDatastores,
+    }),
   );
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<FlowEdge>(initial.edges);
 
-  // Store → canvas: rebuild when the document or statuses change.
+  // Untidy layouts (overlaps, or the single row agent-built designs
+  // start in) arrange themselves along the flow once on open — keyed by project slug.
+  const lastArrangedSlug = useRef<string | null>(null);
+  useEffect(() => {
+    if (lastArrangedSlug.current === slug) return;
+    lastArrangedSlug.current = slug;
+    if (store.getState().readOnly) return;
+    const doc = store.getState().document;
+    if (!needsAutoLayout(doc)) return;
+    useCanvasUi.getState().setLayoutBusy(true);
+    void store
+      .getState()
+      .arrangeLayoutElk(null)
+      .catch(() => toast.error("Flow layout failed, kept the current positions"))
+      .finally(() => {
+        useCanvasUi.getState().setLayoutBusy(false);
+        // Wait a frame so React Flow has the new positions before framing them.
+        window.setTimeout(() => void rf.fitView({ duration: 300, padding: 0.15 }), 50);
+      });
+  }, [store, rf, slug]);
+
+  // Store → canvas: rebuild when the document, statuses, or collapseDatastores change.
   useEffect(() => {
     const selection = useSelection.getState();
     const flow = lens
@@ -204,8 +237,8 @@ function Flow({ wide }: { wide: boolean }) {
           edges: perspectiveEdges(document, lens, NONE),
         }
       : {
-          nodes: toFlowNodes(document, statuses, NONE, view),
-          edges: toFlowEdges(document, NONE, view),
+          nodes: toFlowNodes(document, statuses, NONE, view, { collapseDatastores }),
+          edges: toFlowEdges(document, NONE, view, { collapseDatastores }),
         };
     setNodes((previous) => keepMeasured(flow.nodes, previous));
     setEdges(flow.edges);
@@ -216,7 +249,7 @@ function Flow({ wide }: { wide: boolean }) {
       selection.nodeIds.filter((id) => ids.has(id)),
       selection.edgeIds.filter((id) => edgeIds.has(id)),
     );
-  }, [document, statuses, view, lens, setNodes, setEdges]);
+  }, [document, statuses, view, lens, collapseDatastores, setNodes, setEdges]);
 
   // Changing perspective or level frames the new view; going back to the Architecture "all"
   // view restores its saved viewport.
@@ -247,23 +280,138 @@ function Flow({ wide }: { wide: boolean }) {
   // changes. (Mirroring RF's own selection into the store made the two chase each other.)
   const selectedNodeIds = useSelection((s) => s.nodeIds);
   const selectedEdgeIds = useSelection((s) => s.edgeIds);
+
+  const { activeNodeIds, highlightedEdgeIds, filterActive } = useMemo(() => {
+    const sel = new Set(selectedNodeIds.map(designIdOf));
+    const hasTagFilter = Boolean(activeTag);
+    const hasFocusSelection = focusMode && sel.size > 0;
+
+    if (!hasTagFilter && !hasFocusSelection) {
+      return { activeNodeIds: null, highlightedEdgeIds: null, filterActive: false };
+    }
+
+    const activeNodes = new Set<string>();
+    const highEdges = new Set<string>();
+
+    if (hasTagFilter) {
+      for (const n of document.nodes) {
+        if (n.tags.includes(activeTag!)) {
+          activeNodes.add(n.id);
+        }
+      }
+    }
+
+    if (hasFocusSelection) {
+      for (const id of sel) {
+        activeNodes.add(id);
+      }
+      for (const e of edges) {
+        const s = designIdOf(e.source);
+        const t = designIdOf(e.target);
+        if (sel.has(s) || sel.has(t)) {
+          highEdges.add(e.id);
+          activeNodes.add(s);
+          activeNodes.add(t);
+        }
+      }
+      // Keep subtree nodes active if a container is selected
+      for (const id of sel) {
+        for (const subId of subtreeIds(document, id)) {
+          activeNodes.add(subId);
+        }
+      }
+    } else if (hasTagFilter) {
+      for (const e of edges) {
+        const s = designIdOf(e.source);
+        const t = designIdOf(e.target);
+        if (activeNodes.has(s) && activeNodes.has(t)) {
+          highEdges.add(e.id);
+        }
+      }
+    }
+
+    // Keep parent containers active so they do not dim out active child components
+    const parentMap = new Map<string, string | null>();
+    for (const n of document.nodes) {
+      parentMap.set(n.id, n.parentId);
+    }
+    const queue = Array.from(activeNodes);
+    for (const id of queue) {
+      let p = parentMap.get(id);
+      while (p) {
+        if (!activeNodes.has(p)) {
+          activeNodes.add(p);
+        }
+        p = parentMap.get(p);
+      }
+    }
+
+    return { activeNodeIds: activeNodes, highlightedEdgeIds: highEdges, filterActive: true };
+  }, [selectedNodeIds, activeTag, focusMode, document, edges]);
+
   const shownNodes = useMemo(() => {
     const selected = new Set(selectedNodeIds);
     // A perspective can draw one component more than once: every copy shows the selection.
-    // Nodes can only be dragged when focused (selected) to prevent accidental displacements.
+    // Nodes can be dragged directly on the canvas without needing a prior click.
     return nodes.map((n) => {
-      const on = selected.has(designIdOf(n.id));
-      const shouldBeDraggable = !readOnly && !lens && n.draggable !== false && on;
-      if (!!n.selected === on && n.draggable === shouldBeDraggable) return n;
-      return { ...n, selected: on, draggable: shouldBeDraggable };
+      const designId = designIdOf(n.id);
+      const on = selected.has(designId);
+      const shouldBeDraggable = !readOnly && !lens && n.draggable !== false;
+      const isDimmed = filterActive && activeNodeIds !== null && !activeNodeIds.has(designId);
+      const targetOpacity = isDimmed ? 0.18 : 1;
+      const targetFilter = isDimmed ? "grayscale(50%)" : "none";
+
+      if (
+        !!n.selected === on &&
+        n.draggable === shouldBeDraggable &&
+        n.style?.opacity === targetOpacity
+      ) {
+        return n;
+      }
+      return {
+        ...n,
+        selected: on,
+        draggable: shouldBeDraggable,
+        style: {
+          ...n.style,
+          opacity: targetOpacity,
+          filter: targetFilter,
+          transition: "opacity 0.2s ease, filter 0.2s ease",
+        },
+      };
     });
-  }, [nodes, selectedNodeIds, readOnly, lens]);
-  const shownEdges = useMemo(() => {
+  }, [nodes, selectedNodeIds, readOnly, lens, filterActive, activeNodeIds]);
+
+  const shownEdges = useMemo((): FlowEdge[] => {
     const selected = new Set(selectedEdgeIds);
-    return edges.map((e) =>
-      !!e.selected === selected.has(e.id) ? e : { ...e, selected: selected.has(e.id) },
-    );
-  }, [edges, selectedEdgeIds]);
+    return edges.map((e): FlowEdge => {
+      const isEdgeSelected = selected.has(e.id);
+      const isHighlighted = highlightedEdgeIds !== null && highlightedEdgeIds.has(e.id);
+      const isDimmed = filterActive && !isHighlighted && !isEdgeSelected;
+
+      if (!e.data) return e;
+
+      if (
+        !!e.selected === isEdgeSelected &&
+        e.data.highlighted === isHighlighted &&
+        e.data.dimmed === isDimmed
+      ) {
+        return e;
+      }
+
+      const data: FlowEdgeData = {
+        ...e.data,
+        highlighted: isHighlighted,
+        dimmed: isDimmed,
+      };
+
+      return {
+        ...e,
+        selected: isEdgeSelected,
+        data,
+      };
+    });
+  }, [edges, selectedEdgeIds, filterActive, highlightedEdgeIds]);
 
   const handleNodesChange = useCallback(
     (changes: NodeChange<FlowNode>[]) => {
@@ -307,13 +455,15 @@ function Flow({ wide }: { wide: boolean }) {
   const resetFromStore = useCallback(() => {
     const doc = store.getState().document;
     const sel = useSelection.getState();
+    const ui = useCanvasUi.getState();
     setNodes((prev) =>
       keepMeasured(
         toFlowNodes(
           doc,
           useStatusStore.getState().statuses,
           new Set(sel.nodeIds),
-          viewFor(doc, useCanvasUi.getState()),
+          viewFor(doc, ui),
+          { collapseDatastores: ui.collapseDatastores },
         ),
         prev,
       ),
@@ -668,20 +818,88 @@ function Flow({ wide }: { wide: boolean }) {
     fitView: () => void rf.fitView({ duration: 200, padding: 0.15 }),
     tidyLayout: () => {
       if (useCanvasUi.getState().perspective !== "architecture") return;
+      if (useCanvasUi.getState().layoutBusy) return;
       const v = viewFor(store.getState().document, useCanvasUi.getState());
       if (v?.focus?.kind === "module") return;
-      store.getState().arrangeLayout(v?.focus?.id ?? null, { collapsed: !!v && !v.focus });
-      // Wait a frame so React Flow has the new positions before framing them.
-      window.setTimeout(() => void rf.fitView({ duration: 300, padding: 0.15 }), 50);
+      useCanvasUi.getState().setLayoutBusy(true);
+      void store
+        .getState()
+        .arrangeLayoutElk(v?.focus?.id ?? null, { collapsed: !!v && !v.focus })
+        .catch(() => toast.error("Flow layout failed, kept the current positions"))
+        .finally(() => {
+          useCanvasUi.getState().setLayoutBusy(false);
+          // Wait a frame so React Flow has the new positions before framing them.
+          window.setTimeout(() => void rf.fitView({ duration: 300, padding: 0.15 }), 50);
+        });
     },
     zoomIn: () => void rf.zoomIn({ duration: 150 }),
     zoomOut: () => void rf.zoomOut({ duration: 150 }),
     resetZoom: () => void rf.zoomTo(1, { duration: 150 }),
+    exportImage: async (format) => {
+      const viewportEl = wrapper.current?.querySelector(
+        ".react-flow__viewport",
+      ) as HTMLElement | null;
+      if (!viewportEl) {
+        toast.error("Canvas element not found");
+        return;
+      }
+      const flowNodes = rf.getNodes();
+      if (flowNodes.length === 0) {
+        toast.error("No nodes to export");
+        return;
+      }
+      const toastId = toast.loading(`Exporting ${format.toUpperCase()} image...`);
+      try {
+        await exportCanvasImage({
+          viewportElement: viewportEl,
+          nodes: flowNodes,
+          format,
+          fileName: `${slug}-architecture`,
+          background: resolvedTheme === "dark" ? "dark" : "light",
+        });
+        toast.success(`Exported ${format.toUpperCase()} successfully!`, { id: toastId });
+      } catch (err) {
+        toast.error(`Failed to export image: ${err instanceof Error ? err.message : String(err)}`, {
+          id: toastId,
+        });
+      }
+    },
+    renderPreviewImage: async (format, background) => {
+      const viewportEl = wrapper.current?.querySelector(
+        ".react-flow__viewport",
+      ) as HTMLElement | null;
+      if (!viewportEl) return null;
+      const flowNodes = rf.getNodes();
+      if (flowNodes.length === 0) return null;
+      try {
+        return await renderCanvasDataUrl({
+          viewportElement: viewportEl,
+          nodes: flowNodes,
+          format,
+          background,
+        });
+      } catch {
+        return null;
+      }
+    },
   };
   const actions = useRef(current);
   useEffect(() => {
     actions.current = current;
   });
+
+  const registerExportHandler = useCanvasUi((s) => s.registerExportHandler);
+  const registerPreviewHandler = useCanvasUi((s) => s.registerPreviewHandler);
+  const walkthroughActive = useCanvasUi((s) => s.walkthroughActive);
+
+  useEffect(() => {
+    registerExportHandler(actions.current.exportImage);
+    registerPreviewHandler(actions.current.renderPreviewImage);
+    return () => {
+      registerExportHandler(null);
+      registerPreviewHandler(null);
+    };
+  }, [registerExportHandler, registerPreviewHandler]);
 
   return (
     <CanvasActionsProvider actionsRef={actions}>
@@ -741,6 +959,10 @@ function Flow({ wide }: { wide: boolean }) {
             fitView={viewKey !== SAVED_VIEW || !savedViewport}
             fitViewOptions={{ padding: 0.15 }}
             minZoom={0.1}
+            onlyRenderVisibleElements
+            onViewportChange={(viewport) => {
+              useCanvasUi.getState().updateZoom(viewport.zoom);
+            }}
             onMoveEnd={(_, viewport) => {
               // Only the Architecture "all" view keeps its viewport; the rest are framed when opened.
               if (shownViewKey.current !== SAVED_VIEW) return;
@@ -761,24 +983,36 @@ function Flow({ wide }: { wide: boolean }) {
                 nodeColor={(n) => KIND_STYLE[n.data.node.kind]?.hex ?? "#888"}
               />
             )}
-            {/* Top-center: Perspective Switch & Level breadcrumbs */}
-            <Panel position="top-center" className="flex items-center gap-2">
-              <PerspectiveSwitch />
-              {viewMode === "levels" && (
+            {/* Top-left: Level navigation breadcrumb */}
+            {viewMode === "levels" && (
+              <Panel position="top-left" className="m-3">
                 <LevelBreadcrumb focusId={view ? (view.focus?.id ?? null) : focusId} />
-              )}
-              {readOnly && (
-                <span className="flex h-7 items-center gap-1.5 rounded-lg border bg-background/90 px-2 text-xs font-medium text-muted-foreground shadow-xs">
-                  <Lock className="size-3.5" aria-hidden />
-                  Read-only
-                </span>
-              )}
+              </Panel>
+            )}
+
+            {/* Top-center: Unified View Options Pill */}
+            <Panel position="top-center" className="m-3">
+              <div className="flex h-9 items-center gap-1.5 rounded-full border border-border/80 bg-background/95 p-1 shadow-xs backdrop-blur-md">
+                <PerspectiveSwitch />
+                <FlowTagFilter />
+                {readOnly && (
+                  <>
+                    <div className="h-4 w-px bg-border/60" />
+                    <span className="flex h-6 items-center gap-1 rounded-full bg-muted/80 px-2 text-[11px] font-medium text-muted-foreground">
+                      <Lock className="size-3" aria-hidden />
+                      Read-only
+                    </span>
+                  </>
+                )}
+              </div>
             </Panel>
 
             {/* Bottom-center: Ergonomic Floating Dock */}
-            <Panel position="bottom-center" className="mb-2">
-              <Toolbar />
-            </Panel>
+            {!walkthroughActive && (
+              <Panel position="bottom-center" className="mb-2">
+                <Toolbar />
+              </Panel>
+            )}
 
             {view?.focus?.kind === "module" && (
               <Panel position="top-right" className="mr-4">
@@ -791,6 +1025,7 @@ function Flow({ wide }: { wide: boolean }) {
               </Panel>
             )}
           </ReactFlow>
+          <WalkthroughPlayer />
           {lens?.empty && (
             <div className="pointer-events-none absolute inset-0 grid place-items-center p-8">
               <p className="max-w-sm rounded-xl border bg-background px-4 py-3 text-center text-sm text-muted-foreground shadow-xs">

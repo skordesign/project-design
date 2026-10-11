@@ -50,6 +50,16 @@ export const DESCRIBE_PROJECT_PROMPT = `Describe this repository in the project-
 4. Only add what you can point to in the code. Mark each component that is already implemented as done with set_component_status.
 5. Finish with validate_design and summarise what you mapped and what you were unsure about.`;
 
+/** Instruction prompt to save in the target codebase so any coding agent adheres to the design. */
+export const AGENT_RULES_PROMPT = `# Architecture & Design Guidelines
+
+This repository is governed by a software architecture design via the Project Design MCP server.
+Before inspecting, creating or modifying any code in this repository:
+1. Always call \`get_project_brief\` or \`get_build_plan\` to inspect the system architecture, active conventions, and build order.
+2. Whenever working on a specific file (e.g. creating, editing or refactoring), call \`resolve_file_to_component(filePath: "...")\` to resolve the file's architectural component, service, layer, allowed dependencies, technology stack, and conventions.
+3. Strictly adhere to layer boundaries. Never violate allowed layer dependencies or introduce unauthorized cross-boundary imports.
+4. Keep design status synchronized: once an architectural component is fully implemented, call \`set_component_status\` to update its state to "done".`;
+
 /** How to point a coding agent at this server. `token` is the placeholder unless one was just created. */
 export function ConnectSnippets({ appUrl, token }: { appUrl: string; token?: string }) {
   const url = `${appUrl.replace(/\/$/, "")}/api/mcp`;
@@ -198,6 +208,10 @@ export function ConnectSnippets({ appUrl, token }: { appUrl: string; token?: str
         <code className="font-mono text-xs">Authorization: Bearer {bearer}</code>. Create a
         project-scoped token for each repository.
       </p>
+      <Snippet
+        title="Agent rules instruction (save as AGENTS.md or .cursorrules in your repository)"
+        text={AGENT_RULES_PROMPT}
+      />
       <Snippet
         title="Then ask the agent to describe an existing project"
         text={DESCRIBE_PROJECT_PROMPT}

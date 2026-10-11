@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
+import { resolveFileToComponent } from "@/lib/design/resolver";
 import { NODE_KINDS } from "@/lib/design/schema";
 import {
   brief,
@@ -160,6 +161,40 @@ export function registerReadTools(server: McpServer, ctx: McpContext) {
                 .map((n) => ({ id: n.id, name: n.name })),
             }
           : {}),
+        status: status
+          ? { status: status.status, note: status.note, updatedAt: status.updatedAt }
+          : null,
+      });
+    }),
+  );
+
+  server.registerTool(
+    "resolve_file_to_component",
+    {
+      title: "Resolve file to architecture component",
+      description:
+        "Map a source file path (e.g. 'apps/api/src/domain/task.ts') to its owning architectural component, service, layer, layer rules, allowed dependencies, technology stack, and conventions.",
+      inputSchema: z.object({
+        project: ProjectArg,
+        version: VersionArg,
+        filePath: z
+          .string()
+          .min(1)
+          .describe(
+            "Relative or absolute path of the file to inspect (e.g. 'apps/api/src/domain/task.ts').",
+          ),
+      }),
+      annotations: READ_ONLY,
+    },
+    guarded(async (args) => {
+      const t = await resolveTarget(ctx, args);
+      const res = resolveFileToComponent(t.index, args.filePath);
+      if (!res.matched) {
+        return jsonResult(res);
+      }
+      const status = t.statusInfo.get(res.component.id);
+      return jsonResult({
+        ...res,
         status: status
           ? { status: status.status, note: status.note, updatedAt: status.updatedAt }
           : null,

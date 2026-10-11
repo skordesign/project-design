@@ -117,7 +117,7 @@ export const NODE_KIND_META: Record<NodeKind, NodeKindMeta> = {
     label: "Note",
     icon: "StickyNote",
     container: false,
-    parents: [null, "service", "layer", "datastore", "system"],
+    parents: [null, "service", "layer", "datastore", "module", "system"],
     defaultSize: { width: 208, height: 112 },
     description: "A free-text annotation. Read it as guidance; it generates nothing by itself.",
   },
@@ -256,7 +256,7 @@ export const EDGE_KIND_META: Record<EdgeKind, EdgeKindMeta> = {
   interacts: {
     label: "interacts",
     from: ["actor"],
-    to: ["service", "api", "loop", "system"],
+    to: ["service", "api", "module", "loop", "system"],
     description: "An actor uses the target (data.via, e.g. 'browser', 'mobile app').",
   },
   drives: {
