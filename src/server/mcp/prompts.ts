@@ -35,7 +35,7 @@ export function registerPrompts(server: McpServer, ctx: McpContext) {
       const p = await describeProject(ctx, project);
       const subject = p ? `the project "${p.name}" (\`${p.slug}\`)` : "the project";
       return user(
-        `You are implementing ${subject} from its design in the project-design MCP server.\n` +
+        `You are implementing ${subject} from its design in the project-designer MCP server.\n` +
           "COMPLIANCE RULES (a CI gate calls get_compliance_report on this work):\n" +
           "- Read `get_design_schema` once and `get_project_brief` in full BEFORE writing any code. MUST conventions and layer rules are hard constraints, not suggestions.\n" +
           "- Work through `get_build_plan` in order. For each step, call `get_component` (and `get_api_contract` / `get_data_model` where relevant) before writing code.\n" +

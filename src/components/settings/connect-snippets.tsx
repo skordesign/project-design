@@ -43,7 +43,7 @@ function Snippet({ title, text }: { title: string; text: string }) {
 }
 
 /** Prompt for an agent working in an existing repository: map the code into the design. */
-export const DESCRIBE_PROJECT_PROMPT = `Describe this repository in the project-design MCP server.
+export const DESCRIBE_PROJECT_PROMPT = `Describe this repository in the project-designer MCP server.
 1. Call get_design_schema, then list_projects to find the (empty) project to fill.
 2. Explore the code. Add what really exists with add_component and connect_components: services and apps, the layers and modules inside them, datastores with their entities, APIs with their operations, queues and channels, third-party integrations and actors.
 3. Fill in the overview with update_overview, and the tech stack (versions from the lockfiles), conventions and notable architecture decisions with upsert_section_items.
@@ -53,7 +53,7 @@ export const DESCRIBE_PROJECT_PROMPT = `Describe this repository in the project-
 /** Instruction prompt to save in the target codebase so any coding agent adheres to the design. */
 export const AGENT_RULES_PROMPT = `# Architecture & Design Guidelines
 
-This repository is governed by a software architecture design via the Project Design MCP server.
+This repository is governed by a software architecture design via the Project Designer MCP server.
 Before inspecting, creating or modifying any code in this repository:
 1. Always call \`get_project_brief\` or \`get_build_plan\` to inspect the system architecture, active conventions, and build order.
 2. Whenever working on a specific file (e.g. creating, editing or refactoring), call \`resolve_file_to_component(filePath: "...")\` to resolve the file's architectural component, service, layer, allowed dependencies, technology stack, and conventions.
@@ -65,7 +65,7 @@ export function ConnectSnippets({ appUrl, token }: { appUrl: string; token?: str
   const url = `${appUrl.replace(/\/$/, "")}/api/mcp`;
   const bearer = token ?? "<token>";
   const json = (value: unknown) => JSON.stringify(value, null, 2);
-  const exportToken = `export PROJECT_DESIGN_TOKEN=${bearer}`;
+  const exportToken = `export PROJECT_DESIGNER_TOKEN=${bearer}`;
   const clients = [
     {
       id: "claude",
@@ -73,16 +73,16 @@ export function ConnectSnippets({ appUrl, token }: { appUrl: string; token?: str
       snippets: [
         {
           title: "Terminal",
-          text: `claude mcp add --transport http project-design ${url} --header "Authorization: Bearer ${bearer}"`,
+          text: `claude mcp add --transport http project-designer ${url} --header "Authorization: Bearer ${bearer}"`,
         },
         {
-          title: ".mcp.json in the repository (token from PROJECT_DESIGN_TOKEN)",
+          title: ".mcp.json in the repository (token from PROJECT_DESIGNER_TOKEN)",
           text: json({
             mcpServers: {
-              "project-design": {
+              "project-designer": {
                 type: "http",
                 url,
-                headers: { Authorization: "Bearer ${PROJECT_DESIGN_TOKEN}" },
+                headers: { Authorization: "Bearer ${PROJECT_DESIGNER_TOKEN}" },
               },
             },
           }),
@@ -95,11 +95,11 @@ export function ConnectSnippets({ appUrl, token }: { appUrl: string; token?: str
       snippets: [
         {
           title: "Terminal",
-          text: `${exportToken}\ncodex mcp add project-design --url ${url} --bearer-token-env-var PROJECT_DESIGN_TOKEN`,
+          text: `${exportToken}\ncodex mcp add project-designer --url ${url} --bearer-token-env-var PROJECT_DESIGNER_TOKEN`,
         },
         {
           title: "~/.codex/config.toml (same thing, by hand)",
-          text: `[mcp_servers.project-design]\nurl = "${url}"\nbearer_token_env_var = "PROJECT_DESIGN_TOKEN"`,
+          text: `[mcp_servers.project-designer]\nurl = "${url}"\nbearer_token_env_var = "PROJECT_DESIGNER_TOKEN"`,
         },
       ],
     },
@@ -111,9 +111,9 @@ export function ConnectSnippets({ appUrl, token }: { appUrl: string; token?: str
           title: ".cursor/mcp.json in the repository, or ~/.cursor/mcp.json",
           text: json({
             mcpServers: {
-              "project-design": {
+              "project-designer": {
                 url,
-                headers: { Authorization: "Bearer ${env:PROJECT_DESIGN_TOKEN}" },
+                headers: { Authorization: "Bearer ${env:PROJECT_DESIGNER_TOKEN}" },
               },
             },
           }),
@@ -128,9 +128,9 @@ export function ConnectSnippets({ appUrl, token }: { appUrl: string; token?: str
           title: "~/.codeium/windsurf/mcp_config.json",
           text: json({
             mcpServers: {
-              "project-design": {
+              "project-designer": {
                 serverUrl: url,
-                headers: { Authorization: "Bearer ${env:PROJECT_DESIGN_TOKEN}" },
+                headers: { Authorization: "Bearer ${env:PROJECT_DESIGNER_TOKEN}" },
               },
             },
           }),
@@ -145,17 +145,17 @@ export function ConnectSnippets({ appUrl, token }: { appUrl: string; token?: str
           title: ".vscode/mcp.json (asks for the token once)",
           text: json({
             servers: {
-              "project-design": {
+              "project-designer": {
                 type: "http",
                 url,
-                headers: { Authorization: "Bearer ${input:project-design-token}" },
+                headers: { Authorization: "Bearer ${input:project-designer-token}" },
               },
             },
             inputs: [
               {
                 type: "promptString",
-                id: "project-design-token",
-                description: "Project Design MCP token",
+                id: "project-designer-token",
+                description: "Project Designer MCP token",
                 password: true,
               },
             ],
@@ -171,7 +171,7 @@ export function ConnectSnippets({ appUrl, token }: { appUrl: string; token?: str
           title: "Clients that only run local (stdio) servers: bridge with mcp-remote",
           text: json({
             mcpServers: {
-              "project-design": {
+              "project-designer": {
                 command: "npx",
                 args: ["-y", "mcp-remote", url, "--header", "Authorization:${AUTH_HEADER}"],
                 env: { AUTH_HEADER: `Bearer ${bearer}` },
@@ -202,7 +202,7 @@ export function ConnectSnippets({ appUrl, token }: { appUrl: string; token?: str
       </Tabs>
       <p className="text-sm text-muted-foreground">
         Most config files read the token from the{" "}
-        <code className="font-mono text-xs">PROJECT_DESIGN_TOKEN</code> environment variable (
+        <code className="font-mono text-xs">PROJECT_DESIGNER_TOKEN</code> environment variable (
         <code className="font-mono text-xs">{exportToken}</code>). Any other agent: add a Streamable
         HTTP MCP server at <code className="font-mono text-xs">{url}</code> with the header{" "}
         <code className="font-mono text-xs">Authorization: Bearer {bearer}</code>. Create a

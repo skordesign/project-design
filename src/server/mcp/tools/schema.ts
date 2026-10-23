@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import {
   ARCHITECTURE_STYLE_DESCRIPTIONS,
+  DESIGN_KITS,
   EDGE_KIND_META,
   FIELD_TYPE_DESCRIPTIONS,
   NODE_KIND_META,
@@ -15,6 +16,9 @@ const GUIDE = `# How to read a design
 
 - A design is a graph: **nodes** (components) and **edges** (typed connections), plus project-wide
   tech stack, conventions and architecture decisions.
+- **Modes.** \`overview.mode\` is "software" (services, data, APIs, messaging) or "game" (gameplay
+  loops, systems, mechanics, resources, content). \`modes\` lists the component kinds each mode
+  offers; prefer those. Other kinds stay valid in either mode.
 - **Containment.** A node's \`parentId\` says where it sits: layers and modules live inside a
   service, entities inside a datastore, and so on (see each node kind's allowed parents). The
   \`position\` is only canvas layout; ignore it.
@@ -44,13 +48,14 @@ export function registerSchemaTools(server: McpServer) {
     {
       title: "Explain the design format",
       description:
-        "Explain the design format: what every node kind, edge kind and field type means, containment rules, and the JSON Schema of a design document. Read once before interpreting a design.",
+        "Explain the design format: the components each design mode (software, game) offers, what every node kind, edge kind and field type means, containment rules, and the JSON Schema of a design document. Read once before interpreting a design.",
       inputSchema: z.object({}),
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async () =>
       jsonResult({
         guide: GUIDE,
+        modes: DESIGN_KITS,
         nodeKinds: NODE_KIND_META,
         edgeKinds: EDGE_KIND_META,
         fieldTypes: FIELD_TYPE_DESCRIPTIONS,

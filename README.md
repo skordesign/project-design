@@ -1,4 +1,4 @@
-# Project Design
+# Project Designer
 
 > **Tells the developer what the fuck is going on.**
 
@@ -6,7 +6,7 @@ You open a repo. There are 40 folders, three of them are called `utils`, a servi
 `legacy-v2-new` and a queue nobody admits to owning. The AI agent you hired to help has, with
 total confidence, just invented a fourth architecture. Nobody knows what is going on.
 
-**Project Design fixes that.** You draw the project once — stack, architecture, services,
+**Project Designer fixes that.** You draw the project once — stack, architecture, services,
 layers, modules, databases, APIs, queues, third-party integrations — on a canvas. That drawing
 becomes the single source of truth, and coding agents (Claude Code, Cursor, Codex, …) read it
 over [MCP](https://modelcontextprotocol.io) before they write a single line. They build what you
@@ -107,13 +107,13 @@ Most config files below read the token from an environment variable, so it never
 committed file. Export it in the shell (or profile) your agent starts from:
 
 ```bash
-export PROJECT_DESIGN_TOKEN=pd_…
+export PROJECT_DESIGNER_TOKEN=pd_…
 ```
 
 ### Claude Code
 
 ```bash
-claude mcp add --transport http project-design https://pd.polarizelab.com/api/mcp \
+claude mcp add --transport http project-designer https://pd.polarizelab.com/api/mcp \
   --header "Authorization: Bearer pd_…"
 ```
 
@@ -122,10 +122,10 @@ Or commit a `.mcp.json` at the repository root:
 ```json
 {
   "mcpServers": {
-    "project-design": {
+    "project-designer": {
       "type": "http",
       "url": "https://pd.polarizelab.com/api/mcp",
-      "headers": { "Authorization": "Bearer ${PROJECT_DESIGN_TOKEN}" }
+      "headers": { "Authorization": "Bearer ${PROJECT_DESIGNER_TOKEN}" }
     }
   }
 }
@@ -134,16 +134,16 @@ Or commit a `.mcp.json` at the repository root:
 ### Codex (CLI and IDE extension)
 
 ```bash
-codex mcp add project-design --url https://pd.polarizelab.com/api/mcp \
-  --bearer-token-env-var PROJECT_DESIGN_TOKEN
+codex mcp add project-designer --url https://pd.polarizelab.com/api/mcp \
+  --bearer-token-env-var PROJECT_DESIGNER_TOKEN
 ```
 
 Or add it to `~/.codex/config.toml` by hand:
 
 ```toml
-[mcp_servers.project-design]
+[mcp_servers.project-designer]
 url = "https://pd.polarizelab.com/api/mcp"
-bearer_token_env_var = "PROJECT_DESIGN_TOKEN"
+bearer_token_env_var = "PROJECT_DESIGNER_TOKEN"
 ```
 
 ### Cursor
@@ -153,9 +153,9 @@ bearer_token_env_var = "PROJECT_DESIGN_TOKEN"
 ```json
 {
   "mcpServers": {
-    "project-design": {
+    "project-designer": {
       "url": "https://pd.polarizelab.com/api/mcp",
-      "headers": { "Authorization": "Bearer ${env:PROJECT_DESIGN_TOKEN}" }
+      "headers": { "Authorization": "Bearer ${env:PROJECT_DESIGNER_TOKEN}" }
     }
   }
 }
@@ -169,9 +169,9 @@ bearer_token_env_var = "PROJECT_DESIGN_TOKEN"
 ```json
 {
   "mcpServers": {
-    "project-design": {
+    "project-designer": {
       "serverUrl": "https://pd.polarizelab.com/api/mcp",
-      "headers": { "Authorization": "Bearer ${env:PROJECT_DESIGN_TOKEN}" }
+      "headers": { "Authorization": "Bearer ${env:PROJECT_DESIGNER_TOKEN}" }
     }
   }
 }
@@ -184,17 +184,17 @@ bearer_token_env_var = "PROJECT_DESIGN_TOKEN"
 ```json
 {
   "servers": {
-    "project-design": {
+    "project-designer": {
       "type": "http",
       "url": "https://pd.polarizelab.com/api/mcp",
-      "headers": { "Authorization": "Bearer ${input:project-design-token}" }
+      "headers": { "Authorization": "Bearer ${input:project-designer-token}" }
     }
   },
   "inputs": [
     {
       "type": "promptString",
-      "id": "project-design-token",
-      "description": "Project Design MCP token",
+      "id": "project-designer-token",
+      "description": "Project Designer MCP token",
       "password": true
     }
   ]
@@ -208,9 +208,9 @@ bearer_token_env_var = "PROJECT_DESIGN_TOKEN"
 ```json
 {
   "mcpServers": {
-    "project-design": {
+    "project-designer": {
       "httpUrl": "https://pd.polarizelab.com/api/mcp",
-      "headers": { "Authorization": "Bearer $PROJECT_DESIGN_TOKEN" }
+      "headers": { "Authorization": "Bearer $PROJECT_DESIGNER_TOKEN" }
     }
   }
 }
@@ -225,7 +225,7 @@ Claude Desktop, can use the [`mcp-remote`](https://www.npmjs.com/package/mcp-rem
 ```json
 {
   "mcpServers": {
-    "project-design": {
+    "project-designer": {
       "command": "npx",
       "args": ["-y", "mcp-remote", "https://pd.polarizelab.com/api/mcp", "--header", "Authorization:${AUTH_HEADER}"],
       "env": { "AUTH_HEADER": "Bearer pd_…" }
@@ -235,7 +235,7 @@ Claude Desktop, can use the [`mcp-remote`](https://www.npmjs.com/package/mcp-rem
 ```
 
 Check the connection with the client's MCP list (`/mcp` in Claude Code and Codex, the MCP
-settings page in Cursor, Windsurf and VS Code): `project-design` should show its tools.
+settings page in Cursor, Windsurf and VS Code): `project-designer` should show its tools.
 
 ## Use it from your agent
 
@@ -247,7 +247,7 @@ Already have a codebase and no design? Let the agent draw it for you:
 2. Create a token scoped to that project and connect the agent from the repository's folder.
 3. Ask the agent:
 
-   > Describe this repository in the project-design MCP server.
+   > Describe this repository in the project-designer MCP server.
    > 1. Call get_design_schema, then list_projects to find the (empty) project to fill.
    > 2. Explore the code. Add what really exists with add_component and connect_components:
    >    services and apps, the layers and modules inside them, datastores with their entities,
@@ -280,7 +280,7 @@ every build step per status, lists blocked and stale steps, and returns a pass/f
 Run it from any pipeline with the zero-dependency `scripts/design-gate.mjs`:
 
 ```bash
-export PROJECT_DESIGN_TOKEN=pd_…
+export PROJECT_DESIGNER_TOKEN=pd_…
 node scripts/design-gate.mjs --url https://pd.polarizelab.com/api/mcp \
   --project team-tasks --min-done 100 --fail-on-blocked
 ```
@@ -291,7 +291,7 @@ Example GitHub Actions step (run after your agent job):
 ```yaml
 - name: Design compliance gate
   env:
-    PROJECT_DESIGN_TOKEN: ${{ secrets.PROJECT_DESIGN_TOKEN }}
+    PROJECT_DESIGNER_TOKEN: ${{ secrets.PROJECT_DESIGNER_TOKEN }}
   run: node scripts/design-gate.mjs --url https://pd.polarizelab.com/api/mcp --project team-tasks --fail-on-blocked
 ```
 

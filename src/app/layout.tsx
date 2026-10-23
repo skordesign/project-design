@@ -9,7 +9,7 @@ import { Providers } from "@/components/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Project Design",
+  title: "Project Designer",
   description: "Design a project's architecture and expose it to coding agents over MCP.",
 };
 

@@ -2,12 +2,12 @@
 /**
  * design-gate: CI gate that enforces the design-first loop.
  *
- * Calls get_compliance_report on a project-design MCP server and exits non-zero
+ * Calls get_compliance_report on a Project Designer MCP server and exits non-zero
  * when the gate fails, so a pipeline can block merges on unreported, blocked or
  * stale agent work. Zero dependencies (plain fetch + JSON-RPC over Streamable
  * HTTP); needs node >= 18.
  *
- *   export PROJECT_DESIGN_TOKEN=pd_…
+ *   export PROJECT_DESIGNER_TOKEN=pd_…
  *   node scripts/design-gate.mjs --url https://pd.example.com/api/mcp \
  *     --project team-tasks --min-done 100 --fail-on-blocked
  *
@@ -21,7 +21,7 @@ function usage() {
     "usage: design-gate.mjs [options]",
     "",
     "  --url URL            MCP endpoint (or PROJECT_DESIGN_URL; default http://localhost:3000/api/mcp)",
-    "  --token TOKEN        bearer token (or PROJECT_DESIGN_TOKEN)",
+    "  --token TOKEN        bearer token (or PROJECT_DESIGNER_TOKEN)",
     "  --project SLUG       project slug (optional for scoped/single-project tokens)",
     "  --version REF        draft (default), latest or a version number",
     "  --min-done N         gate fails below N% done steps (default 0)",
@@ -233,9 +233,10 @@ async function main(argv = process.argv.slice(2), environment = process.env, fet
     return 0;
   }
   const url = opts.url ?? environment.PROJECT_DESIGN_URL ?? "http://localhost:3000/api/mcp";
-  const token = opts.token ?? environment.PROJECT_DESIGN_TOKEN;
+  const token =
+    opts.token ?? environment.PROJECT_DESIGNER_TOKEN ?? environment.PROJECT_DESIGN_TOKEN;
   if (!token) {
-    console.error("error: missing token (--token or PROJECT_DESIGN_TOKEN)\n\n" + usage());
+    console.error("error: missing token (--token or PROJECT_DESIGNER_TOKEN)\n\n" + usage());
     process.exitCode = 2;
     return 2;
   }

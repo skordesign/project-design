@@ -35,7 +35,7 @@ describe("scripts/design-gate.mjs", () => {
   let logs: string[];
   let errors: string[];
   let savedExitCode: string | number | null | undefined;
-  const env = { PROJECT_DESIGN_TOKEN: "" };
+  const env = { PROJECT_DESIGNER_TOKEN: "", PROJECT_DESIGN_TOKEN: "" };
 
   beforeEach(async () => {
     await resetDb();

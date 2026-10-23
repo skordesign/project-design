@@ -144,7 +144,7 @@ describe("MCP tools", () => {
     expect(cursorRules).toContain("# Cursor Rules for Team Tasks");
 
     const mcpConfig = json(await call(client, "get_agent_rules", { format: "mcp.json" }));
-    expect(mcpConfig.mcpServers["project-design"]).toBeDefined();
+    expect(mcpConfig.mcpServers["project-designer"]).toBeDefined();
 
     const scaffoldTree = raw(await call(client, "get_project_scaffold"));
     expect(scaffoldTree).toContain(". (project root)");

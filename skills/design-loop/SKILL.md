@@ -1,11 +1,11 @@
 ---
 name: design-loop
-description: Build and review code against a Project Design architecture over MCP. Use when the repo is wired to a project-design server (there is a project-design entry in .mcp.json, .cursor/mcp.json, or similar), when asked to implement/sync/review a design, or when starting work in an unfamiliar codebase that has one.
+description: Build and review code against a Project Designer architecture over MCP. Use when the repo is wired to a project-designer server (there is a project-designer entry in .mcp.json, .cursor/mcp.json, or similar), when asked to implement/sync/review a design, or when starting work in an unfamiliar codebase that has one.
 ---
 
 # Design loop
 
-The architecture lives in the `project-design` MCP server, not in this repo's
+The architecture lives in the `project-designer` MCP server, not in this repo's
 docs. Read it first, build what it says, report progress per component.
 
 ## Implement from a design

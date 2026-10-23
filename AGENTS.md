@@ -8,7 +8,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-# Project Design
+# Project Designer
 
 A Next.js app for designing a software project (stack, architecture, layers,
 modules, data, APIs, queues, integrations) on a canvas, exposed to coding agents

@@ -177,7 +177,7 @@ export function registerEditTools(server: McpServer, ctx: McpContext) {
     {
       title: "Add a component",
       description:
-        "Add a component (node) to the draft design. Containers (service, layer, datastore) hold children; call get_design_schema for allowed parents and each kind's data fields. Returns the new id.",
+        "Add a component (node) to the draft design. Prefer the kinds of the project's design mode (get_design_schema `modes`: software or game). Containers (service, layer, datastore, system) hold children; call get_design_schema for allowed parents and each kind's data fields. Returns the new id.",
       inputSchema: z.object({
         project: ProjectArg,
         kind: z.enum(NODE_KINDS),
@@ -413,7 +413,9 @@ export function registerEditTools(server: McpServer, ctx: McpContext) {
         mode: z
           .enum(DESIGN_MODES)
           .optional()
-          .describe("game switches the designer to game systems (loops, systems, mechanics…)."),
+          .describe(
+            "software: services, data, APIs and messaging. game: loops, systems, mechanics, resources and content.",
+          ),
         summary: z.string().optional(),
         goals: z.array(z.string()).optional(),
         nonGoals: z.array(z.string()).optional(),
