@@ -101,7 +101,7 @@ export function generateProjectScaffold(
     addFile(
       ".mcp.json",
       toMcpConfig(meta),
-      "Model Context Protocol configuration for connecting Claude Code and Cursor to Project Design",
+      "Model Context Protocol configuration for connecting Claude Code and Cursor to Project Designer",
     );
   }
 
@@ -267,7 +267,7 @@ coverage/
   return (
     <main style={{ padding: "2rem", fontFamily: "sans-serif" }}>
       <h1>${svc.name}</h1>
-      <p>Initialized by Project Design Architecture Scaffold.</p>
+      <p>Initialized by Project Designer Architecture Scaffold.</p>
     </main>
   );
 }

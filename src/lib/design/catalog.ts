@@ -4,7 +4,7 @@
  * MCP `get_design_schema` tool hands these descriptions to agents verbatim, so
  * write them for an agent that has never seen this app.
  */
-import type { EdgeKind, FieldType, NodeKind } from "@/lib/design/schema";
+import type { DesignMode, EdgeKind, FieldType, NodeKind } from "@/lib/design/schema";
 import { ARCHITECTURE_STYLES } from "@/lib/design/schema";
 
 export interface NodeKindMeta {
@@ -16,6 +16,8 @@ export interface NodeKindMeta {
   /** Allowed parent kinds; null = may sit at the top level. */
   parents: (NodeKind | null)[];
   defaultSize: { width: number; height: number };
+  /** One line: what the kind is for, shown in the palette. */
+  purpose: string;
   description: string;
 }
 
@@ -26,6 +28,7 @@ export const NODE_KIND_META: Record<NodeKind, NodeKindMeta> = {
     container: true,
     parents: [null],
     defaultSize: { width: 520, height: 360 },
+    purpose: "A deployable app, API, worker or library",
     description:
       "A deployable or runnable unit: web app, API server, worker, CLI, library or mobile app. " +
       "Generate one top-level directory/package per service at data.path. Layers and modules " +
@@ -37,6 +40,7 @@ export const NODE_KIND_META: Record<NodeKind, NodeKindMeta> = {
     container: true,
     parents: ["service"],
     defaultSize: { width: 440, height: 140 },
+    purpose: "A dependency boundary inside a service",
     description:
       "An architectural layer inside a service (e.g. presentation, application, domain, " +
       "infrastructure). Modules inside a layer may only depend on modules in the same layer or " +
@@ -48,6 +52,7 @@ export const NODE_KIND_META: Record<NodeKind, NodeKindMeta> = {
     container: false,
     parents: ["service", "layer"],
     defaultSize: { width: 208, height: 54 },
+    purpose: "A cohesive unit of code with a public interface",
     description:
       "A cohesive unit of code (feature, component, package or class group) with the listed " +
       "responsibilities. data.exports is its public interface; other modules use only that.",
@@ -58,6 +63,7 @@ export const NODE_KIND_META: Record<NodeKind, NodeKindMeta> = {
     container: false,
     parents: [null, "datastore", "layer", "service", "system"],
     defaultSize: { width: 208, height: 54 },
+    purpose: "A data model with typed fields",
     description:
       "A data model with typed fields. Inside a datastore it is a persisted table/collection; " +
       "inside a layer or service it is a domain/model type. Relations between entities are " +
@@ -69,6 +75,7 @@ export const NODE_KIND_META: Record<NodeKind, NodeKindMeta> = {
     container: true,
     parents: [null],
     defaultSize: { width: 480, height: 300 },
+    purpose: "A database, cache or object store",
     description:
       "A database, cache, object store or search index. Entities inside it are its schema. " +
       "Services/modules reach it through accesses edges.",
@@ -79,6 +86,7 @@ export const NODE_KIND_META: Record<NodeKind, NodeKindMeta> = {
     container: false,
     parents: [null],
     defaultSize: { width: 208, height: 54 },
+    purpose: "An interface contract with typed operations",
     description:
       "An interface contract (REST, GraphQL, gRPC, tRPC, WebSocket) with operations and typed " +
       "payloads. The service/module with an exposes edge implements it; nodes with calls edges " +
@@ -90,16 +98,18 @@ export const NODE_KIND_META: Record<NodeKind, NodeKindMeta> = {
     container: false,
     parents: [null],
     defaultSize: { width: 208, height: 54 },
+    purpose: "A third-party service you call",
     description:
       "A third-party system (payments, email, auth, AI, storage…). Wrap it behind an adapter in " +
       "each node that has a uses edge to it; data.env lists the credentials it needs.",
   },
   queue: {
-    label: "Queue / Topic",
+    label: "Queue",
     icon: "Waypoints",
     container: false,
     parents: [null],
     defaultSize: { width: 208, height: 54 },
+    purpose: "A message broker with typed channels",
     description:
       "A message broker or event bus with named channels and typed payloads. Producers have " +
       "publishes edges, consumers have subscribes edges (edge.data.channelId picks the channel).",
@@ -110,6 +120,7 @@ export const NODE_KIND_META: Record<NodeKind, NodeKindMeta> = {
     container: false,
     parents: [null],
     defaultSize: { width: 208, height: 54 },
+    purpose: "A person or external system using the project",
     description:
       "A human role or external system that uses the project. Context only; nothing is generated.",
   },
@@ -119,14 +130,16 @@ export const NODE_KIND_META: Record<NodeKind, NodeKindMeta> = {
     container: false,
     parents: [null, "service", "layer", "datastore", "module", "system"],
     defaultSize: { width: 208, height: 112 },
+    purpose: "A free-text annotation",
     description: "A free-text annotation. Read it as guidance; it generates nothing by itself.",
   },
   loop: {
-    label: "Gameplay loop",
+    label: "Loop",
     icon: "Repeat",
     container: false,
     parents: [null],
     defaultSize: { width: 208, height: 54 },
+    purpose: "What the player repeats, step by step",
     description:
       "A gameplay loop the player repeats (e.g. combat 5–30 s, expedition 15–30 min, " +
       "progression over weeks): data.duration, data.motivation and data.steps in order. drives " +
@@ -134,11 +147,12 @@ export const NODE_KIND_META: Record<NodeKind, NodeKindMeta> = {
       "Design context: nothing is generated from a loop itself.",
   },
   system: {
-    label: "Game system",
+    label: "System",
     icon: "Cog",
     container: true,
     parents: [null],
     defaultSize: { width: 520, height: 320 },
+    purpose: "A gameplay system with its rules and tuning",
     description:
       "A game system (combat, inventory, loot, progression, enemy AI, economy, multiplayer…). " +
       "Its mechanics, resources, content tables and data entities sit inside it. data.rules are " +
@@ -154,6 +168,7 @@ export const NODE_KIND_META: Record<NodeKind, NodeKindMeta> = {
     container: false,
     parents: ["system"],
     defaultSize: { width: 208, height: 54 },
+    purpose: "One mechanic of a system, defined exactly",
     description:
       "One mechanic or feature of a system (dodge, damage calculation, personal loot, weapon " +
       "mastery…): data.trigger starts it, data.states are its states or phases in order, " +
@@ -165,22 +180,49 @@ export const NODE_KIND_META: Record<NodeKind, NodeKindMeta> = {
     container: false,
     parents: [null, "system"],
     defaultSize: { width: 208, height: 54 },
+    purpose: "A stat, currency or item the game tracks",
     description:
       "A quantity the game tracks: a stat (health, stamina), attribute (strength), currency " +
       "(gold), material, item or experience. data.initial/min/max/regen are its values. Systems " +
       "and mechanics with produces edges are its sources, consumes edges are its sinks.",
   },
   content: {
-    label: "Content table",
+    label: "Content",
     icon: "TableProperties",
     container: false,
     parents: [null, "system"],
     defaultSize: { width: 208, height: 54 },
+    purpose: "Authored data: enemies, items, levels…",
     description:
       "Authored content definitions as a table (enemy archetypes, rarity tiers, boss phases, " +
       "weapon families, difficulty scaling…): data.columns and data.rows. Generate these as " +
       "data assets (e.g. ScriptableObjects, JSON) with stable ids, not as hard-coded logic.",
   },
+};
+
+export interface KitGroup {
+  title: string;
+  kinds: NodeKind[];
+}
+
+/**
+ * The components each design mode offers, grouped as in the canvas palette.
+ * Kinds outside a mode's kit stay valid in its documents; the kit is what the
+ * designer suggests, kept small so every kind has a clear job.
+ */
+export const DESIGN_KITS: Record<DesignMode, KitGroup[]> = {
+  software: [
+    { title: "Build", kinds: ["service", "layer", "module"] },
+    { title: "Data", kinds: ["datastore", "entity"] },
+    { title: "Connect", kinds: ["api", "queue", "integration"] },
+    { title: "Context", kinds: ["actor", "note"] },
+  ],
+  game: [
+    { title: "Gameplay", kinds: ["loop", "system", "mechanic"] },
+    { title: "Economy & content", kinds: ["resource", "content"] },
+    { title: "Tech", kinds: ["service", "datastore", "entity"] },
+    { title: "Context", kinds: ["actor", "note"] },
+  ],
 };
 
 export const CONTAINER_KINDS = (Object.keys(NODE_KIND_META) as NodeKind[]).filter(

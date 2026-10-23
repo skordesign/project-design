@@ -101,7 +101,7 @@ export function Landing({ cta, notice }: { cta: React.ReactNode; notice?: React.
         <Contribute />
         <FinalCta cta={cta} />
         <footer className="border-t py-8 text-center text-xs text-muted-foreground">
-          Project Design · design once, let agents build it
+          Project Designer · design once, let agents build it
         </footer>
       </div>
     </MotionConfig>
@@ -154,7 +154,7 @@ function Hero({ cta, notice }: { cta: React.ReactNode; notice?: React.ReactNode 
           variants={rise}
           className="max-w-xl text-base text-pretty text-muted-foreground sm:text-lg"
         >
-          Lay out services, data, APIs and integrations on a canvas. Project Design turns it into
+          Lay out services, data, APIs and integrations on a canvas. Project Designer turns it into
           briefs, contracts and a build plan that agents fetch over MCP, and shows their progress
           back on the canvas.
         </motion.p>
@@ -263,7 +263,7 @@ function Contribute() {
       <SectionHeading
         eyebrow="Open source"
         title="Help build it"
-        body="Project Design is developed in the open. Bug fixes, new node kinds, MCP tools, docs: pull requests of any size are welcome, so feel free to open one."
+        body="Project Designer is developed in the open. Bug fixes, new node kinds, MCP tools, docs: pull requests of any size are welcome, so feel free to open one."
       />
       <motion.div
         initial={{ opacity: 0, y: 16 }}

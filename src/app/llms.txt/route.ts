@@ -11,7 +11,7 @@ export async function GET() {
   // APP_URL differs per deployment, so this must render per request.
   await connection();
   const appUrl = env().APP_URL.replace(/\/$/, "");
-  const body = `# Project Design — instructions for AI coding agents
+  const body = `# Project Designer — instructions for AI coding agents
 
 > You are working with a project whose architecture lives here, not in anyone's
 > head. Read the design FIRST, build what it says, report progress per component.

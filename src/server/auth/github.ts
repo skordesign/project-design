@@ -43,7 +43,7 @@ export async function fetchGithubProfile(code: string): Promise<GithubProfile> {
     headers: {
       Accept: "application/vnd.github+json",
       Authorization: `Bearer ${token.access_token}`,
-      "User-Agent": "project-design",
+      "User-Agent": "project-designer",
     },
     signal: AbortSignal.timeout(10_000),
   });

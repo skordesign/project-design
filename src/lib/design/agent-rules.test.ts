@@ -27,7 +27,7 @@ describe("toAgentsMd", () => {
     // MCP details
     expect(md).toContain("https://design.example.com/api/mcp");
     expect(md).toContain('get_project_brief(project: "team-tasks")');
-    expect(md).toContain("PROJECT_DESIGN_TOKEN");
+    expect(md).toContain("PROJECT_DESIGNER_TOKEN");
 
     // Strict Layer Boundaries
     expect(md).toContain("Strict Layer Boundaries (Dependency Matrix)");
@@ -76,10 +76,10 @@ describe("toMcpConfig", () => {
     const parsed = JSON.parse(jsonStr);
 
     expect(parsed).toHaveProperty("mcpServers");
-    expect(parsed.mcpServers).toHaveProperty("project-design");
-    expect(parsed.mcpServers["project-design"].url).toBe("https://design.example.com/api/mcp");
-    expect(parsed.mcpServers["project-design"].headers.Authorization).toBe(
-      "Bearer ${PROJECT_DESIGN_TOKEN}",
+    expect(parsed.mcpServers).toHaveProperty("project-designer");
+    expect(parsed.mcpServers["project-designer"].url).toBe("https://design.example.com/api/mcp");
+    expect(parsed.mcpServers["project-designer"].headers.Authorization).toBe(
+      "Bearer ${PROJECT_DESIGNER_TOKEN}",
     );
   });
 });

@@ -32,7 +32,7 @@ export function toAgentsMd(doc: DesignDocument, meta: AgentRulesMeta = {}): stri
     "> **CRITICAL FOR ALL AI CODING AGENTS (Claude Code, Cursor, Codex, Cline, Devin, Antigravity)**:",
   );
   lines.push(
-    "> This repository is governed by an architecture design in the Project Design MCP server.",
+    "> This repository is governed by an architecture design in the Project Designer MCP server.",
   );
   lines.push(
     "> You must implement what was designed — **DO NOT hallucinate or invent new architectures**.",
@@ -72,7 +72,7 @@ export function toAgentsMd(doc: DesignDocument, meta: AgentRulesMeta = {}): stri
   lines.push(`- **MCP Server Endpoint**: \`${mcpUrl}\``);
   lines.push(`- **Project Slug**: \`${slug}\``);
   lines.push(
-    "- **Required Environment Variable**: `PROJECT_DESIGN_TOKEN` (Bearer token for MCP auth)",
+    "- **Required Environment Variable**: `PROJECT_DESIGNER_TOKEN` (Bearer token for MCP auth)",
   );
   lines.push("");
   lines.push("### Essential MCP Tools to Call:");
@@ -248,7 +248,7 @@ export function toCursorRules(doc: DesignDocument, meta: AgentRulesMeta = {}): s
   lines.push("");
   lines.push("## Core Principles");
   lines.push(
-    `- This project is strictly governed by the Project Design MCP server at \`${mcpUrl}\` (project: \`${slug}\`).`,
+    `- This project is strictly governed by the Project Designer MCP server at \`${mcpUrl}\` (project: \`${slug}\`).`,
   );
   lines.push(
     "- Architecture style is `" +
@@ -302,11 +302,11 @@ export function toMcpConfig(meta: AgentRulesMeta = {}): string {
   const appUrl = (meta.appUrl || "http://localhost:3000").replace(/\/$/, "");
   const config = {
     mcpServers: {
-      "project-design": {
+      "project-designer": {
         type: "http",
         url: `${appUrl}/api/mcp`,
         headers: {
-          Authorization: "Bearer ${PROJECT_DESIGN_TOKEN}",
+          Authorization: "Bearer ${PROJECT_DESIGNER_TOKEN}",
         },
       },
     },

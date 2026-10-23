@@ -14,11 +14,12 @@ import type { Principal } from "@/server/services/tokens";
 export function createDesignMcpServer(deps: { db: Db; principal: Principal }): McpServer {
   const ctx: McpContext = { db: deps.db, principal: deps.principal };
   const server = new McpServer(
-    { name: "project-design", version: "0.1.0" },
+    { name: "project-designer", version: "0.1.0" },
     {
       instructions:
-        "Project designs (stack, architecture, layers, APIs, data, integrations) that you must " +
-        "follow when generating code. Start with list_projects, then get_design_schema once and " +
+        "Project Designer: software designs (stack, architecture, layers, APIs, data, " +
+        "integrations) and game designs (loops, systems, mechanics, resources, content) that you " +
+        "must follow when generating code. Start with list_projects, then get_design_schema once and " +
         "get_project_brief for the design. The implement_design prompt describes the full " +
         "workflow; report progress with set_component_status. To change the draft design, use " +
         "the edit tools (add_component, update_component, connect_components, …); every edit " +

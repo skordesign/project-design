@@ -14,7 +14,7 @@ export function TopBar({ account }: { account: React.ReactNode }) {
         <span className="grid size-7 place-items-center rounded-lg bg-primary text-primary-foreground transition-transform duration-300 group-hover:rotate-12">
           <Network className="size-4" aria-hidden />
         </span>
-        Project Design
+        Project Designer
       </Link>
       {account}
       <ThemeToggle />

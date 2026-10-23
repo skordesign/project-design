@@ -19,46 +19,13 @@ import { useDesigner } from "@/components/designer/store-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { canContain, NODE_KIND_META } from "@/lib/design/catalog";
+import { canContain, DESIGN_KITS, NODE_KIND_META } from "@/lib/design/catalog";
 import { NODE_KINDS, type DesignNode, type NodeKind } from "@/lib/design/schema";
 import { cn } from "@/lib/utils";
 import { useCanvasUi, PALETTE_LAYOUT_KEY, type PaletteLayout } from "@/stores/canvas-ui-store";
 import { useSelection } from "@/stores/selection-store";
 
 export const DRAG_MIME = "application/x-design-kind";
-
-interface KindCategory {
-  title: string;
-  kinds: NodeKind[];
-}
-
-const SOFTWARE_CATEGORIES: KindCategory[] = [
-  {
-    title: "Architecture & Code",
-    kinds: ["service", "layer", "module"],
-  },
-  {
-    title: "Data & Persistence",
-    kinds: ["entity", "datastore"],
-  },
-  {
-    title: "Interfaces & Events",
-    kinds: ["api", "queue", "integration"],
-  },
-  {
-    title: "Context & Documentation",
-    kinds: ["actor", "note"],
-  },
-];
-
-const GAME_CATEGORIES: KindCategory[] = [
-  { title: "Game design", kinds: ["loop", "system", "mechanic", "resource", "content"] },
-  {
-    title: "Technical",
-    kinds: ["service", "layer", "module", "datastore", "entity", "api", "queue", "integration"],
-  },
-  { title: "Context & Documentation", kinds: ["actor", "note"] },
-];
 
 function PaletteButton({
   kind,
@@ -103,7 +70,7 @@ function PaletteButton({
             "group relative flex w-full min-w-0 cursor-grab items-center rounded-lg border text-left transition-all active:cursor-grabbing",
             layout === "grid"
               ? "h-9 gap-2 border-border/70 bg-card/75 px-2 py-1.5 shadow-2xs hover:border-primary/40 hover:bg-accent/80 hover:shadow-xs"
-              : "h-8.5 gap-2.5 border-border/60 bg-card/60 px-2.5 py-1.5 shadow-2xs hover:border-primary/40 hover:bg-accent/80",
+              : "h-10 gap-2.5 border-border/60 bg-card/60 px-2.5 py-1.5 shadow-2xs hover:border-primary/40 hover:bg-accent/80",
           )}
         >
           <span
@@ -123,6 +90,11 @@ function PaletteButton({
             >
               {meta.label}
             </span>
+            {layout === "list" && (
+              <span className="mt-0.5 block truncate text-[10px] leading-none text-muted-foreground">
+                {meta.purpose}
+              </span>
+            )}
           </span>
 
           {meta.container && layout === "grid" && (
@@ -165,6 +137,7 @@ function PaletteButton({
             </span>
           )}
         </div>
+        <p className="text-xs font-medium text-foreground">{meta.purpose}</p>
         <p className="text-xs text-muted-foreground leading-relaxed">{meta.description}</p>
         {needsParent && !canClickAdd ? (
           <div className="flex flex-col gap-1 border-t border-border/40 pt-1.5 text-[10px] text-muted-foreground">
@@ -196,10 +169,10 @@ function PaletteContent() {
     (s) => s.document.nodes.find((n) => n.id === selectedId)?.kind ?? null,
   );
   const mode = useDesigner((s) => s.document.overview.mode);
-  const categories = mode === "game" ? GAME_CATEGORIES : SOFTWARE_CATEGORIES;
+  const categories = DESIGN_KITS[mode];
   const focusId = useCanvasUi((s) => s.focusId);
-  const focusKind = useDesigner(
-    (s) => (focusId ? s.document.nodes.find((n) => n.id === focusId)?.kind ?? null : null),
+  const focusKind = useDesigner((s) =>
+    focusId ? (s.document.nodes.find((n) => n.id === focusId)?.kind ?? null) : null,
   );
 
   return (
@@ -207,7 +180,7 @@ function PaletteContent() {
       {/* Subheader with View Switcher */}
       <div className="flex w-full items-center justify-between px-0.5">
         <span className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
-          Nodes ({categories.reduce((acc, c) => acc + c.kinds.length, 0)})
+          {mode === "game" ? "Game" : "Software"} components
         </span>
         <div className="flex items-center gap-0.5 rounded-md border border-border/60 bg-muted/40 p-0.5">
           <button

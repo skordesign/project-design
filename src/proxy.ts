@@ -49,7 +49,7 @@ function checkBasicAuth(request: NextRequest): NextResponse | null {
   }
   return new NextResponse("Authentication required", {
     status: 401,
-    headers: { "WWW-Authenticate": 'Basic realm="Project Design", charset="UTF-8"' },
+    headers: { "WWW-Authenticate": 'Basic realm="Project Designer", charset="UTF-8"' },
   });
 }
 
