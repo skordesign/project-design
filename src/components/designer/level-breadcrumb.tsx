@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, FolderTree } from "lucide-react";
+import { ChevronRight, Focus, FolderTree } from "lucide-react";
 import { Fragment, useMemo } from "react";
 
 import { KIND_STYLE } from "@/components/designer/nodes/kind-style";
@@ -9,15 +9,19 @@ import { breadcrumb } from "@/lib/design/levels";
 import { cn } from "@/lib/utils";
 import { useCanvasUi } from "@/stores/canvas-ui-store";
 
-/** Project › Service › Layer: where the levels view is drilled into; each step goes back up. */
+/**
+ * Project › Service › Layer: where the levels view is drilled into; each step goes back up.
+ * Inside a node, the Standalone toggle hides everything outside it.
+ */
 export function LevelBreadcrumb({ focusId }: { focusId: string | null }) {
   const document = useDesigner((s) => s.document);
+  const standalone = useCanvasUi((s) => s.standalone);
   const trail = useMemo(() => breadcrumb(document, focusId), [document, focusId]);
   const go = (id: string | null) => useCanvasUi.getState().setFocus(id);
   return (
     <nav
       aria-label="Level navigation"
-      className="inline-flex max-w-[360px] items-center gap-1 overflow-hidden rounded-full border border-border/80 bg-background/95 px-2.5 py-1 text-xs shadow-xs backdrop-blur-md"
+      className="inline-flex max-w-[460px] items-center gap-1 overflow-hidden rounded-full border border-border/80 bg-background/95 px-2.5 py-1 text-xs shadow-xs backdrop-blur-md"
     >
       <button
         type="button"
@@ -53,6 +57,26 @@ export function LevelBreadcrumb({ focusId }: { focusId: string | null }) {
           </Fragment>
         );
       })}
+      {trail.length > 0 && (
+        <>
+          <span className="mx-0.5 h-3.5 w-px shrink-0 bg-border" aria-hidden />
+          <button
+            type="button"
+            aria-pressed={standalone}
+            className={cn(
+              "flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 transition-colors outline-none cursor-pointer",
+              standalone
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+            onClick={() => useCanvasUi.getState().toggleStandalone()}
+            title={standalone ? "Show connected components" : "Hide everything outside this view"}
+          >
+            <Focus className="size-3" aria-hidden />
+            <span>Standalone</span>
+          </button>
+        </>
+      )}
     </nav>
   );
 }

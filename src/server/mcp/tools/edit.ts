@@ -8,11 +8,13 @@ import { z } from "zod";
 
 import { allowedEdgeKinds, NODE_KIND_META } from "@/lib/design/catalog";
 import {
+  addGameSystem,
   applyServiceTemplate,
   removeChannel,
   removeElements,
   removeOperation,
 } from "@/lib/design/edits";
+import { GAME_SYSTEM_TEMPLATES } from "@/lib/design/game-systems";
 import { freePosition, growToFit, reparentNode, subtreeIds } from "@/lib/design/geometry";
 import { indexDesign, type DesignIndex } from "@/lib/design/graph";
 import { newEdgeId, newItemId, newNodeId } from "@/lib/design/ids";
@@ -554,6 +556,29 @@ export function registerEditTools(server: McpServer, ctx: McpContext) {
         const node = findNode(index, service, ["service"]);
         const { document, added } = applyServiceTemplate(doc, node.id, template);
         return { document, result: { id: node.id, added } };
+      });
+      return jsonResult(saved);
+    }),
+  );
+
+  server.registerTool(
+    "add_game_system",
+    {
+      title: "Add a built-in game system",
+      description:
+        "Add a ready-made game system at the top level: the system with its mechanics, resources and content tables nested inside, and the produces/consumes/triggers/modifies/uses edges between them. Tune it afterwards with update_component. Systems: " +
+        GAME_SYSTEM_TEMPLATES.map((t) => `${t.id} (${t.summary})`).join("; "),
+      inputSchema: z.object({
+        project: ProjectArg,
+        system: z.enum(GAME_SYSTEM_TEMPLATES.map((t) => t.id) as [string, ...string[]]),
+        position: Point.optional().describe("Canvas position; omit to place it automatically."),
+      }),
+      annotations: WRITE,
+    },
+    guarded(async ({ project, system, position }) => {
+      const saved = await editDraft(ctx, project, (doc) => {
+        const { document, systemId, added } = addGameSystem(doc, system, position);
+        return { document, result: { id: systemId, added } };
       });
       return jsonResult(saved);
     }),

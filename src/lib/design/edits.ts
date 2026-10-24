@@ -3,9 +3,20 @@
  * (no dangling operation, channel, field or entity references). Pure and
  * isomorphic; the designer store applies them as single undo steps.
  */
-import { subtreeIds } from "@/lib/design/geometry";
+import { getGameSystemTemplate, type GameSystemLink } from "@/lib/design/game-systems";
+import { CONTAINER_HEADER, CONTAINER_PAD, freePosition, subtreeIds } from "@/lib/design/geometry";
 import { newEdgeId, newItemId, newNodeId } from "@/lib/design/ids";
-import type { DesignDocument, DesignEdge, DesignNode, Field, TypeShape } from "@/lib/design/schema";
+import {
+  ContentDataSchema,
+  MechanicDataSchema,
+  ResourceDataSchema,
+  SystemDataSchema,
+  type DesignDocument,
+  type DesignEdge,
+  type DesignNode,
+  type Field,
+  type TypeShape,
+} from "@/lib/design/schema";
 import { getServiceTemplate } from "@/lib/design/service-templates";
 
 const mapNode = (doc: DesignDocument, id: string, fn: (n: DesignNode) => DesignNode) => ({
@@ -311,6 +322,134 @@ export function applyServiceTemplate(
       conventions: conventions.length,
       layers: layerNodes.length,
       env: env.length,
+    },
+  };
+}
+
+export interface GameSystemAddition {
+  document: DesignDocument;
+  /** The new system's id; null when the template is unknown. */
+  systemId: string | null;
+  added: { mechanics: number; resources: number; content: number; links: number };
+}
+
+const PART = { width: 208, height: 54, pitchX: 248, pitchY: 112, cols: 4 } as const;
+const PART_X = 40;
+const PART_TOP = CONTAINER_HEADER + 24;
+
+const linkData = (link: GameSystemLink) => {
+  const detail = link.detail ?? "";
+  switch (link.kind) {
+    case "triggers":
+      return { event: detail };
+    case "modifies":
+      return { effect: detail };
+    case "produces":
+      return { rate: detail };
+    case "consumes":
+      return { amount: detail };
+    case "uses":
+      return { purpose: detail };
+    case "depends_on":
+      return {};
+  }
+};
+
+/**
+ * Adds a built-in game system (game-systems.ts) at the top level: the system
+ * container with its mechanics, resources and content nested inside, and the
+ * edges between them. Ring parts are laid out on a circle, the rest in a grid
+ * below. Returns the document unchanged for an unknown template.
+ */
+export function addGameSystem(
+  doc: DesignDocument,
+  templateId: string,
+  position?: { x: number; y: number },
+): GameSystemAddition {
+  const template = getGameSystemTemplate(templateId);
+  const none = { mechanics: 0, resources: 0, content: 0, links: 0 };
+  if (!template) return { document: doc, systemId: null, added: none };
+
+  const systemId = newNodeId("system");
+  const ids = new Map(template.parts.map((part) => [part.key, newNodeId(part.kind)]));
+
+  const ringKeys = template.ring ?? [];
+  const radius = ringKeys.length ? Math.max(200, ringKeys.length * 44) : 0;
+  const ringWidth = ringKeys.length ? radius * 2 + PART.width : 0;
+  const ringHeight = ringKeys.length ? radius * 2 + PART.pitchY : 0;
+  const rest = template.parts.filter((part) => !ringKeys.includes(part.key));
+  const cols = Math.min(PART.cols, rest.length);
+  const gridWidth = cols ? cols * PART.pitchX - (PART.pitchX - PART.width) : 0;
+  const inner = Math.max(ringWidth, gridWidth);
+
+  const at = new Map<string, { x: number; y: number }>();
+  ringKeys.forEach((key, i) => {
+    const angle = -Math.PI / 2 + (i * 2 * Math.PI) / ringKeys.length;
+    at.set(key, {
+      x: Math.round(PART_X + (inner - ringWidth) / 2 + radius + radius * Math.cos(angle)),
+      y: Math.round(PART_TOP + radius + radius * Math.sin(angle)),
+    });
+  });
+  rest.forEach((part, i) => {
+    at.set(part.key, {
+      x: PART_X + (i % PART.cols) * PART.pitchX,
+      y: PART_TOP + ringHeight + Math.floor(i / PART.cols) * PART.pitchY,
+    });
+  });
+  const rows = Math.ceil(rest.length / PART.cols);
+  const height = PART_TOP + ringHeight + rows * PART.pitchY - (PART.pitchY - PART.height);
+
+  const base = { description: "", parentId: systemId, size: null, tags: [], patterns: [] };
+  const parts = template.parts.map((part): DesignNode => {
+    const common = {
+      ...base,
+      id: ids.get(part.key)!,
+      name: part.name,
+      description: part.description ?? "",
+      position: at.get(part.key)!,
+    };
+    switch (part.kind) {
+      case "mechanic":
+        return { ...common, kind: "mechanic", data: MechanicDataSchema.parse(part.data) };
+      case "resource":
+        return { ...common, kind: "resource", data: ResourceDataSchema.parse(part.data) };
+      case "content":
+        return { ...common, kind: "content", data: ContentDataSchema.parse(part.data) };
+    }
+  });
+  const system: DesignNode = {
+    ...base,
+    id: systemId,
+    kind: "system",
+    name: template.label,
+    description: template.summary,
+    parentId: null,
+    position: position ?? freePosition(doc, null),
+    size: { width: inner + PART_X * 2, height: height + CONTAINER_PAD },
+    data: SystemDataSchema.parse({ ...template.system, category: template.category }),
+  };
+  const edges = template.links.map(
+    (link) =>
+      ({
+        id: newEdgeId(link.kind),
+        kind: link.kind,
+        source: ids.get(link.from)!,
+        target: ids.get(link.to)!,
+        label: link.label ?? "",
+        description: "",
+        data: linkData(link),
+      }) as DesignEdge,
+  );
+
+  const count = (kind: string) => template.parts.filter((part) => part.kind === kind).length;
+  return {
+    document: { ...doc, nodes: [...doc.nodes, system, ...parts], edges: [...doc.edges, ...edges] },
+    systemId,
+    added: {
+      mechanics: count("mechanic"),
+      resources: count("resource"),
+      content: count("content"),
+      links: edges.length,
     },
   };
 }

@@ -319,6 +319,7 @@ the design-first loop without being told.
 | `connect_components`, `update_connection`, `remove_connections` | Edit typed connections between components               |
 | `update_overview`, `upsert_section_items`, `remove_section_items` | Edit the overview, stack, conventions and decisions   |
 | `apply_service_template`                                | Fill a service with a starter stack, conventions and layers     |
+| `add_game_system`                                       | Add a built-in game system (elementals, combat, loot…)          |
 | `save_project_design`                                   | Replace the whole draft (checks the revision)                   |
 
 Prompts: `implement_design`, `sync_design_changes`, `review_against_design`. Resources:

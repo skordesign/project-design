@@ -9,17 +9,19 @@ import {
   PanelLeftOpen,
   Plus,
   Search,
+  Sparkles,
   X,
 } from "lucide-react";
 import { useEffect, useMemo } from "react";
 
 import { useCanvasActions } from "@/components/designer/canvas-actions";
 import { KIND_STYLE } from "@/components/designer/nodes/kind-style";
-import { useDesigner } from "@/components/designer/store-provider";
+import { useDesigner, useDesignerStore } from "@/components/designer/store-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { canContain, DESIGN_KITS, NODE_KIND_META } from "@/lib/design/catalog";
+import { GAME_SYSTEM_TEMPLATES } from "@/lib/design/game-systems";
 import { NODE_KINDS, type DesignNode, type NodeKind } from "@/lib/design/schema";
 import { cn } from "@/lib/utils";
 import { useCanvasUi, PALETTE_LAYOUT_KEY, type PaletteLayout } from "@/stores/canvas-ui-store";
@@ -158,6 +160,74 @@ function PaletteButton({
   );
 }
 
+/** Game mode: ready-made systems (game-systems.ts), each added whole with its mechanics. */
+function BuiltInSystems({ layout }: { layout: PaletteLayout }) {
+  const store = useDesignerStore();
+  const actions = useCanvasActions();
+  const readOnly = useDesigner((s) => s.readOnly);
+  return (
+    <section className="flex w-full flex-col gap-1.5">
+      <h3 className="px-1 text-[10px] font-semibold tracking-wider text-muted-foreground/80 uppercase">
+        Built-in systems
+      </h3>
+      <div
+        className={cn(
+          "w-full",
+          layout === "grid" ? "grid grid-cols-2 gap-1.5" : "flex flex-col gap-1",
+        )}
+      >
+        {GAME_SYSTEM_TEMPLATES.map((t) => (
+          <Tooltip key={t.id}>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                disabled={readOnly}
+                aria-label={`Add ${t.label} system`}
+                onClick={() => {
+                  const id = store.getState().addGameSystem(t.id);
+                  if (!id) return;
+                  useSelection.getState().set([id], []);
+                  window.setTimeout(() => actions.focus({ nodeId: id }), 50);
+                }}
+                className={cn(
+                  "group flex w-full min-w-0 items-center gap-2 rounded-lg border border-border/70 bg-card/75 text-left shadow-2xs transition-all hover:border-primary/40 hover:bg-accent/80 disabled:pointer-events-none disabled:opacity-50",
+                  layout === "grid" ? "h-9 px-2 py-1.5" : "h-10 px-2.5 py-1.5",
+                )}
+              >
+                <span className="grid size-6 shrink-0 place-items-center rounded-md border border-border/70 bg-background/90 shadow-2xs">
+                  <Sparkles className={cn("size-3.5", KIND_STYLE.system.text)} aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span
+                    className={cn(
+                      "block truncate font-medium leading-none text-foreground group-hover:text-primary",
+                      layout === "grid" ? "text-[11.5px]" : "text-xs",
+                    )}
+                  >
+                    {t.label}
+                  </span>
+                  {layout === "list" && (
+                    <span className="mt-0.5 block truncate text-[10px] leading-none text-muted-foreground">
+                      {t.summary}
+                    </span>
+                  )}
+                </span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" sideOffset={8} className="max-w-64 text-xs">
+              <p className="font-medium">{t.label}</p>
+              <p className="mt-1 opacity-80">{t.summary}</p>
+              <p className="mt-1 opacity-70">
+                {t.parts.length} components · {t.links.length} links · click to add
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function PaletteContent() {
   const actions = useCanvasActions();
   const paletteLayout = useCanvasUi((s) => s.paletteLayout);
@@ -239,6 +309,8 @@ function PaletteContent() {
           </div>
         </section>
       ))}
+
+      {mode === "game" && <BuiltInSystems layout={paletteLayout} />}
     </div>
   );
 }

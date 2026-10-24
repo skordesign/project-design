@@ -121,12 +121,17 @@ function readViewport(slug: string): Viewport | null {
 }
 
 type Doc = Parameters<typeof levelView>[0];
-type UiView = { perspective: Perspective; viewMode: ViewMode; focusId: string | null };
+type UiView = {
+  perspective: Perspective;
+  viewMode: ViewMode;
+  focusId: string | null;
+  standalone: boolean;
+};
 
 /** The Architecture perspective's levels view, or undefined (the "all" view, other perspectives). */
 function viewFor(doc: Doc, ui: UiView): LevelView | undefined {
   return ui.perspective === "architecture" && ui.viewMode === "levels"
-    ? levelView(doc, ui.focusId)
+    ? levelView(doc, ui.focusId, { standalone: ui.standalone })
     : undefined;
 }
 
@@ -183,10 +188,14 @@ function Flow({ wide }: { wide: boolean }) {
   const perspective = useCanvasUi((s) => s.perspective);
   const viewMode = useCanvasUi((s) => s.viewMode);
   const focusId = useCanvasUi((s) => s.focusId);
+  const standalone = useCanvasUi((s) => s.standalone);
   const focusMode = useCanvasUi((s) => s.focusMode);
   const collapseDatastores = useCanvasUi((s) => s.collapseDatastores);
   const activeTag = useCanvasUi((s) => s.activeTag);
-  const ui = useMemo(() => ({ perspective, viewMode, focusId }), [perspective, viewMode, focusId]);
+  const ui = useMemo(
+    () => ({ perspective, viewMode, focusId, standalone }),
+    [perspective, viewMode, focusId, standalone],
+  );
   const view = useMemo(() => viewFor(document, ui), [document, ui]);
   const lens = useMemo(() => lensFor(document, ui), [document, ui]);
 
@@ -255,7 +264,7 @@ function Flow({ wide }: { wide: boolean }) {
   // view restores its saved viewport.
   const viewKey = `${perspective}:${viewMode}:${
     viewMode === "all" ? "" : view ? (view.focus?.id ?? "") : (focusId ?? "")
-  }`;
+  }${standalone ? ":standalone" : ""}`;
   const shownViewKey = useRef(viewKey);
   /** Set by focus() when it centres a node itself right after switching level. */
   const skipFit = useRef(false);
