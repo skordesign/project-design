@@ -20,7 +20,7 @@ async function Tokens() {
   const { APP_URL } = env();
   return (
     <>
-      <section className="grid gap-3">
+      <section className="grid grid-cols-[minmax(0,1fr)] gap-3">
         <div className="flex items-center justify-between">
           <h2 className="font-heading text-lg font-medium">MCP tokens</h2>
           <CreateTokenDialog
@@ -40,7 +40,7 @@ async function Tokens() {
           }))}
         />
       </section>
-      <section className="grid gap-3">
+      <section className="grid grid-cols-[minmax(0,1fr)] gap-3">
         <h2 className="font-heading text-lg font-medium">Connect an agent</h2>
         <ConnectSnippets appUrl={APP_URL} />
       </section>
@@ -50,7 +50,7 @@ async function Tokens() {
 
 export default function SettingsPage() {
   return (
-    <main className="mx-auto grid w-full max-w-4xl gap-8 p-6">
+    <main className="mx-auto grid w-full max-w-4xl grid-cols-[minmax(0,1fr)] gap-8 p-4 sm:p-6">
       <h1 className="font-heading text-xl font-semibold">Settings</h1>
       <Suspense fallback={<p className="text-muted-foreground">Loading…</p>}>
         <Tokens />

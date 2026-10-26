@@ -987,6 +987,7 @@ function Flow({ wide }: { wide: boolean }) {
             <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} />
             {minimapOpen && (
               <MiniMap<FlowNode>
+                className="max-sm:hidden"
                 pannable
                 zoomable
                 nodeColor={(n) => KIND_STYLE[n.data.node.kind]?.hex ?? "#888"}

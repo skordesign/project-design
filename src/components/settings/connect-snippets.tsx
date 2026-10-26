@@ -19,7 +19,7 @@ export async function copyText(text: string, label = "Copied") {
 function Snippet({ title, text }: { title: string; text: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="grid gap-1.5">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium">{title}</h3>
         <Button
@@ -183,9 +183,9 @@ export function ConnectSnippets({ appUrl, token }: { appUrl: string; token?: str
     },
   ];
   return (
-    <div className="grid gap-4">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
       <Tabs defaultValue="claude">
-        <TabsList className="w-full flex-wrap justify-start group-data-horizontal/tabs:h-auto">
+        <TabsList className="no-scrollbar w-full justify-start overflow-x-auto">
           {clients.map((client) => (
             <TabsTrigger key={client.id} value={client.id} className="flex-none">
               {client.label}
@@ -193,7 +193,11 @@ export function ConnectSnippets({ appUrl, token }: { appUrl: string; token?: str
           ))}
         </TabsList>
         {clients.map((client) => (
-          <TabsContent key={client.id} value={client.id} className="grid gap-4 pt-2">
+          <TabsContent
+            key={client.id}
+            value={client.id}
+            className="grid grid-cols-[minmax(0,1fr)] gap-4 pt-2"
+          >
             {client.snippets.map((snippet) => (
               <Snippet key={snippet.title} title={snippet.title} text={snippet.text} />
             ))}
