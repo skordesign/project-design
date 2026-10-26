@@ -11,7 +11,7 @@ import { useDesigner } from "@/components/designer/store-provider";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { NODE_KIND_META } from "@/lib/design/catalog";
+import { DESIGN_KITS, NODE_KIND_META } from "@/lib/design/catalog";
 import { NODE_KINDS, type NodeKind } from "@/lib/design/schema";
 import { useCanvasUi } from "@/stores/canvas-ui-store";
 import { useSelection } from "@/stores/selection-store";
@@ -29,9 +29,13 @@ function Content() {
   );
 }
 
-/** Nothing selected: components grouped by type. */
+/** Nothing selected: components grouped by type — the mode's kit plus any other kind in use. */
 function ComponentList() {
   const document = useDesigner((s) => s.document);
+  const kit = new Set(DESIGN_KITS[document.overview.mode].flatMap((g) => g.kinds));
+  const kinds = NODE_KINDS.filter(
+    (kind) => kit.has(kind) || document.nodes.some((n) => n.kind === kind),
+  );
   const actions = useCanvasActions();
   const [open, setOpen] = useState<ReadonlySet<NodeKind>>(new Set());
 
@@ -59,7 +63,7 @@ function ComponentList() {
         </span>
       </div>
       <ul className="grid gap-1 text-sm min-w-0">
-        {NODE_KINDS.map((kind) => {
+        {kinds.map((kind) => {
           const nodes = document.nodes
             .filter((n) => n.kind === kind)
             .sort((a, b) => a.name.localeCompare(b.name));
@@ -257,7 +261,10 @@ export function Inspector({ wide }: { wide: boolean }) {
   }
   return (
     <Sheet open={hasSelection} onOpenChange={(open) => !open && useSelection.getState().clear()}>
-      <SheetContent side="right" className="w-80 sm:w-90 gap-0 overflow-y-auto overflow-x-hidden p-0 sm:max-w-sm flex flex-col min-w-0">
+      <SheetContent
+        side="right"
+        className="w-80 sm:w-90 gap-0 overflow-y-auto overflow-x-hidden p-0 sm:max-w-sm flex flex-col min-w-0"
+      >
         <SheetTitle className="sr-only">Inspector</SheetTitle>
         <SheetDescription className="sr-only">
           Edit the selected component or connection.
