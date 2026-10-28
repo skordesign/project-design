@@ -414,3 +414,8 @@ the variables from [Configuration](#configuration) — at least `DATABASE_URL` a
 - Every inbound document is validated (schema plus integrity rules) and JSON bodies are
   size-limited; all SQL goes through Drizzle (parameterised); user text is rendered as text,
   never as HTML.
+
+## License
+
+Copyright 2026 Project Designer contributors. Licensed under the
+[Apache License, Version 2.0](LICENSE).
