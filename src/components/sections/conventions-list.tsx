@@ -114,7 +114,7 @@ export function ConventionsList() {
             </h2>
             {items.map((c) => (
               <div key={c.id} className="grid gap-2 rounded-lg border p-3">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="secondary">{c.category}</Badge>
                   <div className="ml-auto flex items-center gap-1">
                     <div className="w-28">

@@ -3,7 +3,7 @@
 import { AlertTriangle, CircleAlert, Lock, LockOpen, Network, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { renameProjectAction } from "@/app/actions/projects";
@@ -144,6 +144,13 @@ function ReadOnlyToggle() {
 export function ProjectHeader() {
   const { slug, description } = useProjectMeta();
   const pathname = usePathname();
+  const mobileNav = useRef<HTMLElement>(null);
+  // The small-screen tab row scrolls sideways; keep the current section visible.
+  useEffect(() => {
+    mobileNav.current
+      ?.querySelector('[aria-current="page"]')
+      ?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [pathname]);
   return (
     <div className="shrink-0 border-b bg-background/95 backdrop-blur-sm">
       <div className="flex h-13 items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4">
@@ -204,6 +211,7 @@ export function ProjectHeader() {
 
       {/* Sub-nav row for mobile/smaller screens (< lg) */}
       <nav
+        ref={mobileNav}
         aria-label="Mobile project sections"
         className="flex h-9 items-center border-t px-3 sm:px-4 lg:hidden overflow-x-auto no-scrollbar scroll-smooth"
       >

@@ -8,6 +8,7 @@
  *
  * Nodes outside the focus that connect to it are shown as read-only context nodes. An edge whose
  * endpoint is hidden is lifted to the endpoint's visible representative and deduplicated.
+ * Standalone hides the context: only the focus's inside and the edges within it.
  */
 import { NODE_KIND_META } from "@/lib/design/catalog";
 import { absolutePosition, nodeSize, type Point } from "@/lib/design/geometry";
@@ -67,7 +68,11 @@ export function isFocusable(node: DesignNode): boolean {
   return NODE_KIND_META[node.kind].container || node.kind === "module";
 }
 
-export function levelView(doc: DesignDocument, focusId: string | null): LevelView {
+export function levelView(
+  doc: DesignDocument,
+  focusId: string | null,
+  options: { standalone?: boolean } = {},
+): LevelView {
   const index = indexDesign(doc);
   const candidate = focusId ? index.node(focusId) : undefined;
   const focus = candidate && isFocusable(candidate) ? candidate : null;
@@ -129,6 +134,7 @@ export function levelView(doc: DesignDocument, focusId: string | null): LevelVie
     const target = representative(e.target);
     if (!source || !target) continue;
     if (!insideIds.has(source) && !insideIds.has(target)) continue;
+    if (options.standalone && focus && !(insideIds.has(source) && insideIds.has(target))) continue;
     // A container focus frames the view; edges attached to it have nowhere to go.
     if (focus && !insideIds.has(focus.id) && (source === focus.id || target === focus.id)) continue;
     if (source === target && (source !== e.source || target !== e.target)) continue;

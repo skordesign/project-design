@@ -3,6 +3,7 @@
 import { Handle, NodeResizer, Position, type NodeProps } from "@xyflow/react";
 import {
   ChevronRight,
+  Focus,
   GripVertical,
   KeyRound,
   ListChecks,
@@ -251,6 +252,25 @@ export function OpenButton({ node }: { node: DesignNode }) {
   );
 }
 
+/** Opens a container by itself in the levels view, with everything outside it hidden. */
+export function StandaloneButton({ node }: { node: DesignNode }) {
+  return (
+    <Button
+      variant="ghost"
+      size="icon-xs"
+      className="nodrag shrink-0"
+      aria-label={`Open ${node.name} standalone`}
+      title={`Open ${node.name} standalone`}
+      onClick={(e) => {
+        e.stopPropagation();
+        useCanvasUi.getState().openStandalone(node.id);
+      }}
+    >
+      <Focus />
+    </Button>
+  );
+}
+
 export const card =
   "group/node w-52 rounded-xl border bg-card p-2.5 shadow-[0_1px_3px_0_rgb(0_0_0/0.04)] transition-shadow hover:shadow-md cursor-grab active:cursor-grabbing";
 
@@ -391,6 +411,7 @@ export function ContainerNode({ id, data, selected }: NodeProps<FlowNode>) {
         <ContainerTitle node={data.node} />
         <div className="flex items-center gap-1.5">
           <Chips data={data} className="justify-end" />
+          <StandaloneButton node={data.node} />
           {levels && <OpenButton node={data.node} />}
         </div>
       </div>
@@ -418,6 +439,7 @@ export function SummaryNode({ data, selected }: NodeProps<FlowNode>) {
       <Handles kind={node.kind} />
       <div className="flex items-start gap-1">
         <Title node={node} subtitle={context} />
+        {NODE_KIND_META[node.kind].container && <StandaloneButton node={node} />}
         {isFocusable(node) && <OpenButton node={node} />}
       </div>
       {collapsed !== undefined ? (

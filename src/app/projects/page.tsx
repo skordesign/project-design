@@ -55,7 +55,7 @@ async function ProjectGrid() {
 
 export default function ProjectsPage() {
   return (
-    <main className="mx-auto w-full max-w-6xl p-6">
+    <main className="mx-auto w-full max-w-6xl p-4 sm:p-6">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="font-heading text-xl font-semibold">Projects</h1>
         <Actions />

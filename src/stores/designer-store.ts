@@ -11,6 +11,7 @@ import { createStore } from "zustand/vanilla";
 
 import { allowedEdgeKinds, NODE_KIND_META } from "@/lib/design/catalog";
 import {
+  addGameSystem,
   applyServiceTemplate,
   removeChannel,
   removeField,
@@ -77,6 +78,8 @@ export interface DesignerState {
   removeField(entityId: string, name: string): void;
   /** Applies a service template as one undo step; returns what was added (see edits.ts). */
   applyServiceTemplate(serviceId: string, templateId: string): TemplateApplication["added"];
+  /** Adds a built-in game system as one undo step; returns its id, or null if nothing was added. */
+  addGameSystem(templateId: string, position?: Point): string | null;
   /** Replace the draft wholesale (restore a version, reload after a conflict or a remote save). */
   replaceDocument(document: DesignDocument, revision?: number): void;
 
@@ -229,6 +232,11 @@ export function createDesignerStore(init: {
             const result = applyServiceTemplate(get().document, serviceId, templateId);
             mutate(() => result.document);
             return result.added;
+          },
+          addGameSystem(templateId, position) {
+            const result = addGameSystem(get().document, templateId, position);
+            mutate(() => result.document);
+            return get().document === result.document ? result.systemId : null;
           },
 
           replaceDocument(document, revision) {

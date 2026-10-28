@@ -22,6 +22,8 @@ interface CanvasUiState {
   viewMode: ViewMode;
   /** The container or module the levels view is drilled into; null = project level. */
   focusId: string | null;
+  /** Levels view only: show the focus by itself, hiding everything outside it. */
+  standalone: boolean;
   validationOpen: boolean;
   minimapOpen: boolean;
   /** The "changed elsewhere" dialog (opened by autosave or the header). */
@@ -54,6 +56,9 @@ interface CanvasUiState {
   setViewMode(mode: ViewMode): void;
   /** Drill into a node (switching to the levels view), or back to the project with null. */
   setFocus(focusId: string | null): void;
+  /** Drill into a node with everything outside it hidden (see `standalone`). */
+  openStandalone(focusId: string): void;
+  toggleStandalone(): void;
   toggleValidation(open?: boolean): void;
   toggleMinimap(): void;
   setConflictOpen(open: boolean): void;
@@ -104,6 +109,7 @@ export const useCanvasUi = create<CanvasUiState>((set) => ({
   perspective: "architecture",
   viewMode: "all",
   focusId: null,
+  standalone: false,
   validationOpen: false,
   minimapOpen: true,
   conflictOpen: false,
@@ -124,9 +130,12 @@ export const useCanvasUi = create<CanvasUiState>((set) => ({
 
   setPerspective: (perspective) => set({ perspective }),
   setViewMode(viewMode) {
-    set({ viewMode });
+    set({ viewMode, standalone: false });
   },
-  setFocus: (focusId) => set({ viewMode: "levels", focusId }),
+  setFocus: (focusId) => set({ viewMode: "levels", focusId, standalone: false }),
+  openStandalone: (focusId) =>
+    set({ perspective: "architecture", viewMode: "levels", focusId, standalone: true }),
+  toggleStandalone: () => set((s) => ({ standalone: !s.standalone })),
   toggleValidation: (open) => set((s) => ({ validationOpen: open ?? !s.validationOpen })),
   toggleMinimap: () => set((s) => ({ minimapOpen: !s.minimapOpen })),
   setConflictOpen: (open) => set({ conflictOpen: open }),

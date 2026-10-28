@@ -134,6 +134,14 @@
   }
 }
 
+/* Horizontal scrollers on touch screens (tab rows, the canvas toolbar). */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* React Flow chrome in the app's tokens: a soft canvas, hairline-bordered floating controls. */
 .react-flow {
   --xy-background-color: var(--canvas);

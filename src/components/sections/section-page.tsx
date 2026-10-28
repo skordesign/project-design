@@ -21,14 +21,16 @@ export function SectionPage({
   const readOnly = useDesigner((s) => s.readOnly);
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
-      <main className={`mx-auto grid w-full gap-4 p-6 ${wide ? "max-w-5xl" : "max-w-3xl"}`}>
+      <main
+        className={`mx-auto grid w-full grid-cols-[minmax(0,1fr)] gap-4 p-4 sm:p-6 ${wide ? "max-w-5xl" : "max-w-3xl"}`}
+      >
         <fieldset disabled={editable && readOnly} className="contents">
-          <header className="flex items-start justify-between gap-4">
-            <div>
+          <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+            <div className="min-w-0">
               <h1 className="font-heading text-lg font-semibold">{title}</h1>
               {description && <p className="text-sm text-muted-foreground">{description}</p>}
             </div>
-            {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+            {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
           </header>
           {children}
         </fieldset>

@@ -9,12 +9,16 @@ const navLink = "rounded-md px-2.5 py-1 hover:bg-muted hover:text-foreground";
 /** `account` is the session-dependent part (see src/app/account.tsx), streamed in by the layout. */
 export function TopBar({ account }: { account: React.ReactNode }) {
   return (
-    <header className="flex h-12 shrink-0 items-center gap-6 border-b bg-background/80 px-4 backdrop-blur">
-      <Link href="/" className="group flex items-center gap-2 font-heading text-sm font-semibold">
+    <header className="flex h-12 shrink-0 items-center gap-3 border-b bg-background/80 px-3 backdrop-blur sm:gap-6 sm:px-4">
+      <Link
+        href="/"
+        aria-label="Project Designer"
+        className="group flex shrink-0 items-center gap-2 font-heading text-sm font-semibold"
+      >
         <span className="grid size-7 place-items-center rounded-lg bg-primary text-primary-foreground transition-transform duration-300 group-hover:rotate-12">
           <Network className="size-4" aria-hidden />
         </span>
-        Project Designer
+        <span className="hidden sm:inline">Project Designer</span>
       </Link>
       {account}
       <ThemeToggle />

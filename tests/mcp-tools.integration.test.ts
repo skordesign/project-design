@@ -510,6 +510,17 @@ describe("MCP edit tools", () => {
     await client.close();
   });
 
+  it("adds a built-in game system with its mechanics", async () => {
+    const { client } = await seed();
+    const added = json(await call(client, "add_game_system", { system: "elementals" }));
+    expect(added.added.mechanics).toBeGreaterThan(0);
+    const children = json(await call(client, "list_components", { parentId: added.id }));
+    expect(children.length).toBe(
+      added.added.mechanics + added.added.resources + added.added.content,
+    );
+    await client.close();
+  });
+
   it("save_project_design replaces the draft and checks the revision", async () => {
     const { project, client } = await seed();
     const design = json(await call(client, "get_project_design"));

@@ -54,6 +54,7 @@ describe("MCP endpoint", () => {
     const tools = await client.listTools();
     expect(tools.tools.map((t) => t.name).sort()).toEqual([
       "add_component",
+      "add_game_system",
       "apply_service_template",
       "connect_components",
       "get_agent_rules",

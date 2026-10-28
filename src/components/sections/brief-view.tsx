@@ -75,7 +75,7 @@ export function BriefView({ versions }: { versions: VersionOption[] }) {
       description="This is exactly what get_project_brief returns."
       actions={
         <>
-          <div className="w-48">
+          <div className="w-40 sm:w-48">
             <Select value={source} onValueChange={setSource}>
               <SelectTrigger size="sm" className="w-full" aria-label="Brief source">
                 <SelectValue />
@@ -100,10 +100,10 @@ export function BriefView({ versions }: { versions: VersionOption[] }) {
         </>
       }
     >
-      <ScrollArea className="h-[calc(100dvh-16rem)] rounded-lg border">
+      <ScrollArea className="h-[calc(100dvh-16rem)] rounded-lg border [&_[data-slot=scroll-area-viewport]>div]:block!">
         <pre
           data-testid="brief"
-          className="p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap"
+          className="p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap wrap-anywhere"
         >
           {text}
         </pre>
